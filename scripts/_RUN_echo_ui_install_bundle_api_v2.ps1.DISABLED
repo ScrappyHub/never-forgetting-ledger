@@ -1,0 +1,209 @@
+param(
+  [Parameter(Mandatory=$false)][string]$UiRoot = "C:\ProgramData\EchoOutboxAgent\ui"
+)
+$ErrorActionPreference="Stop"
+Set-StrictMode -Version Latest
+function Die([string]$m){ throw $m }
+function EnsureDir([string]$p){ if (-not (Test-Path -LiteralPath $p -PathType Container)) { New-Item -ItemType Directory -Force -Path $p | Out-Null } }
+function WriteUtf8NoBomLf([string]$Path,[string]$Text){
+  $enc = New-Object System.Text.UTF8Encoding($false)
+  $dir = Split-Path -Parent $Path
+  if ($dir -and -not (Test-Path -LiteralPath $dir -PathType Container)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
+  $norm = ($Text -replace "`r`n","`n" -replace "`r","`n")
+  if (-not $norm.EndsWith("`n")) { $norm += "`n" }
+  [System.IO.File]::WriteAllText($Path,$norm,$enc)
+}
+
+$SrvPath  = Join-Path (Join-Path $UiRoot "server") "server.py"
+$Index    = Join-Path $UiRoot "index.html"
+$AppJs    = Join-Path $UiRoot "app.js"
+$BundlePs = Join-Path $UiRoot "build_evidence_bundle_v1.ps1"
+if (-not (Test-Path -LiteralPath $SrvPath -PathType Leaf))   { Die ("Missing: " + $SrvPath) }
+if (-not (Test-Path -LiteralPath $Index  -PathType Leaf))   { Die ("Missing: " + $Index) }
+if (-not (Test-Path -LiteralPath $AppJs  -PathType Leaf))   { Die ("Missing: " + $AppJs) }
+if (-not (Test-Path -LiteralPath $BundlePs -PathType Leaf)) { Die ("Missing: " + $BundlePs) }
+
+# backups
+$bakDir = Join-Path $UiRoot "_bak"
+EnsureDir $bakDir
+$stamp = (Get-Date).ToUniversalTime().ToString("yyyyMMdd_HHmmss")
+$bakSrv = Join-Path $bakDir ("server.py." + $stamp + ".pre_bundle_api_v2.bak")
+$bakIdx = Join-Path $bakDir ("index.html." + $stamp + ".pre_bundle_api_v2.bak")
+$bakJs  = Join-Path $bakDir ("app.js." + $stamp + ".pre_bundle_api_v2.bak")
+Copy-Item -LiteralPath $SrvPath -Destination $bakSrv -Force
+Copy-Item -LiteralPath $Index  -Destination $bakIdx -Force
+Copy-Item -LiteralPath $AppJs  -Destination $bakJs  -Force
+Write-Host ("BACKUP_OK: " + $bakDir) -ForegroundColor DarkGray
+
+# -------------------- server.py --------------------
+$py = Get-Content -Raw -LiteralPath $SrvPath -Encoding UTF8
+$py = [System.Text.RegularExpressions.Regex]::Replace($py, "(?s)# --- BUNDLE_API_V1 ---.*?# --- END_BUNDLE_API_V1 ---\s*", "", "IgnoreCase")
+$m = [System.Text.RegularExpressions.Regex]::Match($py, "(?s)\A(.*?\n)\n")
+if (-not $m.Success) { Die "PATCH_FAIL: could not find import header blank line in server.py" }
+$hdr  = $m.Groups[1].Value + "`n"
+$rest = $py.Substring($hdr.Length)
+
+$b = New-Object System.Collections.Generic.List[string]
+[void]$b.Add("# --- BUNDLE_API_V1 ---")
+[void]$b.Add("import subprocess")
+[void]$b.Add("")
+[void]$b.Add("def _ui_root_dir():")
+[void]$b.Add("    return os.path.abspath(os.path.join(os.path.dirname(__file__), "".."" ))")
+[void]$b.Add("")
+[void]$b.Add("def _bundle_ps_path():")
+[void]$b.Add("    return os.path.join(_ui_root_dir(), ""build_evidence_bundle_v1.ps1"")")
+[void]$b.Add("")
+[void]$b.Add("def _bundles_dir():")
+[void]$b.Add("    return os.path.join(_ui_root_dir(), ""bundles"")")
+[void]$b.Add("")
+[void]$b.Add("def _latest_bundle_dir():")
+[void]$b.Add("    d = _bundles_dir()")
+[void]$b.Add("    if not os.path.isdir(d): return None")
+[void]$b.Add("    names = [n for n in os.listdir(d) if n.startswith(""bundle_"")]")
+[void]$b.Add("    if not names: return None")
+[void]$b.Add("    names.sort()")
+[void]$b.Add("    return os.path.join(d, names[-1])")
+[void]$b.Add("")
+[void]$b.Add("def _bundle_info(bundle_dir):")
+[void]$b.Add("    if not bundle_dir: return None")
+[void]$b.Add("    want = [(""receipts.ndjson"",""application/x-ndjson""), (""status.json"",""application/json""), (""sha256sums.txt"",""text/plain"")]")
+[void]$b.Add("    files = []")
+[void]$b.Add("    for (fn, ct) in want:")
+[void]$b.Add("        p = os.path.join(bundle_dir, fn)")
+[void]$b.Add("        files.append({""name"": fn, ""path"": p, ""exists"": os.path.exists(p), ""content_type"": ct, ""url"": ""/api/bundle/file?f="" + fn})")
+[void]$b.Add("    return {""bundle_dir"": bundle_dir, ""files"": files}")
+[void]$b.Add("")
+[void]$b.Add("def _run_bundle_build(tail):")
+[void]$b.Add("    ps = _bundle_ps_path()")
+[void]$b.Add("    if not os.path.exists(ps): return {""ok"": False, ""error"": ""missing build script"", ""path"": ps}")
+[void]$b.Add("    args = [""powershell.exe"", ""-NoProfile"", ""-NonInteractive"", ""-ExecutionPolicy"", ""Bypass"", ""-File"", ps, ""-Tail"", str(tail)]")
+[void]$b.Add("    try:")
+[void]$b.Add("        r = subprocess.run(args, capture_output=True, text=True)")
+[void]$b.Add("        return {""ok"": (r.returncode==0), ""exit_code"": r.returncode, ""stdout"": r.stdout, ""stderr"": r.stderr}")
+[void]$b.Add("    except Exception as e:")
+[void]$b.Add("        return {""ok"": False, ""error"": str(e)}")
+[void]$b.Add("")
+[void]$b.Add("# --- END_BUNDLE_API_V1 ---")
+$bundleBlock = ($b.ToArray() -join "`n")
+$py2 = $hdr + $bundleBlock + "`n" + $rest
+$needle = "        u = urlparse(self.path)"
+if ($py2.IndexOf($needle) -lt 0) { Die "PATCH_FAIL: could not find handler line: u = urlparse(self.path)" }
+$e = New-Object System.Collections.Generic.List[string]
+[void]$e.Add("        # bundle api")
+[void]$e.Add("        if u.path == ""/api/bundle/latest"":")
+[void]$e.Add("            bdir = _latest_bundle_dir()")
+[void]$e.Add("            info = _bundle_info(bdir) if bdir else {""bundle_dir"": None, ""files"": []}")
+[void]$e.Add("            self._send(200, ""application/json; charset=utf-8"", json.dumps(info))")
+[void]$e.Add("            return")
+[void]$e.Add("        if u.path == ""/api/bundle/build"":")
+[void]$e.Add("            qs = parse_qs(u.query)")
+[void]$e.Add("            tail = 2000")
+[void]$e.Add("            try:")
+[void]$e.Add("                if ""tail"" in qs: tail = int(qs[""tail""][0])")
+[void]$e.Add("            except Exception:")
+[void]$e.Add("                tail = 2000")
+[void]$e.Add("            tail = max(1, min(5000, tail))")
+[void]$e.Add("            r = _run_bundle_build(tail)")
+[void]$e.Add("            bdir = _latest_bundle_dir()")
+[void]$e.Add("            info = _bundle_info(bdir) if bdir else {""bundle_dir"": None, ""files"": []}")
+[void]$e.Add("            out = {""build"": r, ""latest"": info}")
+[void]$e.Add("            self._send(200, ""application/json; charset=utf-8"", json.dumps(out))")
+[void]$e.Add("            return")
+[void]$e.Add("        if u.path == ""/api/bundle/file"":")
+[void]$e.Add("            qs = parse_qs(u.query)")
+[void]$e.Add("            fn = qs.get(""f"", [""""])[0]")
+[void]$e.Add("            allow = set([""receipts.ndjson"", ""status.json"", ""sha256sums.txt""])")
+[void]$e.Add("            if fn not in allow:")
+[void]$e.Add("                self._send(400, ""application/json; charset=utf-8"", json.dumps({""error"": ""bad file""}))")
+[void]$e.Add("                return")
+[void]$e.Add("            bdir = _latest_bundle_dir()")
+[void]$e.Add("            if not bdir:")
+[void]$e.Add("                self._send(404, ""application/json; charset=utf-8"", json.dumps({""error"": ""no bundles""}))")
+[void]$e.Add("                return")
+[void]$e.Add("            p = os.path.join(bdir, fn)")
+[void]$e.Add("            if not os.path.exists(p):")
+[void]$e.Add("                self._send(404, ""application/json; charset=utf-8"", json.dumps({""error"": ""missing"", ""path"": p}))")
+[void]$e.Add("                return")
+[void]$e.Add("            ct = ""application/octet-stream""")
+[void]$e.Add("            if fn.endswith("".json""): ct = ""application/json; charset=utf-8""")
+[void]$e.Add("            elif fn.endswith("".ndjson""): ct = ""application/x-ndjson; charset=utf-8""")
+[void]$e.Add("            elif fn.endswith("".txt""): ct = ""text/plain; charset=utf-8""")
+[void]$e.Add("            with open(p, ""rb"") as f:")
+[void]$e.Add("                self._send(200, ct, f.read())")
+[void]$e.Add("            return")
+$insert2 = ($e.ToArray() -join "`n")
+$py3 = $py2.Replace($needle, ($needle + "`n" + $insert2))
+WriteUtf8NoBomLf -Path $SrvPath -Text ($py3 + "`n")
+Write-Host "PATCH_OK: server.py bundle endpoints installed" -ForegroundColor Green
+
+# proof: python compile-check (simple, no r""" hazards)
+$PyExe = (Get-Command python.exe -ErrorAction Stop).Source
+$cmd = "import py_compile; py_compile.compile(" + ([char]34 + $SrvPath + [char]34) + ", doraise=True); print(" + ([char]34+"PY_COMPILE_OK"+[char]34) + ")"
+& $PyExe -c $cmd
+if ($LASTEXITCODE -ne 0) { Die ("python compile-check failed exit=" + $LASTEXITCODE) }
+Write-Host "PY_COMPILE_OK" -ForegroundColor Green
+
+# -------------------- index.html --------------------
+$html = Get-Content -Raw -LiteralPath $Index -Encoding UTF8
+if ($html -notmatch "id=""refreshBtn""") { Die "PATCH_FAIL: index.html missing refreshBtn" }
+if ($html -notmatch "id=""tailN""") { Die "PATCH_FAIL: index.html missing tailN" }
+if ($html -notmatch "id=""buildBtn""") {
+  $html = $html.Replace(
+    '<button id="refreshBtn">Refresh</button>',
+    '<button id="refreshBtn">Refresh</button> <button id="buildBtn">Build Bundle</button>'
+  )
+}
+if ($html -notmatch "id=""bundleLine""") {
+  $needle2 = '<div class="k" style="margin-top:10px">Receipts</div>'
+  if ($html -notlike ("*" + $needle2 + "*")) { Die "PATCH_FAIL: index.html missing Receipts header anchor" }
+  $ins = @(
+    '<div class="k" style="margin-top:10px">Latest bundle</div>',
+    '<div id="bundleLine" class="v mono">none</div>',
+    '<div id="bundleLinks" class="v mono"></div>',
+    $needle2
+  ) -join "`n"
+  $html = $html.Replace($needle2, $ins)
+}
+WriteUtf8NoBomLf -Path $Index -Text ($html + "`n")
+Write-Host "PATCH_OK: index.html updated" -ForegroundColor Green
+
+# -------------------- app.js --------------------
+$js = Get-Content -Raw -LiteralPath $AppJs -Encoding UTF8
+if ($js -notmatch "/api/status") { Die "PATCH_FAIL: app.js unexpected (missing /api/status usage) — refuse to guess structure" }
+if ($js -notmatch "/\* BUNDLE_UI_V1 \*/") {
+  $blk = New-Object System.Collections.Generic.List[string]
+  [void]$blk.Add("")
+  [void]$blk.Add("/* BUNDLE_UI_V1 */")
+  [void]$blk.Add("async function bundleLatest(){ return await getJson(\"/api/bundle/latest\"); }")
+  [void]$blk.Add("async function bundleBuild(tail){ return await getJson(\"/api/bundle/build?tail=\"+encodeURIComponent(String(tail))); }")
+  [void]$blk.Add("function renderBundle(info){")
+  [void]$blk.Add("  const line = document.getElementById(\"bundleLine\");")
+  [void]$blk.Add("  const links = document.getElementById(\"bundleLinks\");")
+  [void]$blk.Add("  if(!line || !links) return;")
+  [void]$blk.Add("  if(!info || !info.bundle_dir){ line.textContent = \"none\"; links.textContent=\"\"; return; }")
+  [void]$blk.Add("  line.textContent = info.bundle_dir;")
+  [void]$blk.Add("  const fs = (info.files||[]).filter(x=>x && x.exists);")
+  [void]$blk.Add("  let html = \"\";")
+  [void]$blk.Add("  for(const f of fs){ html += `<div><a href=\"${f.url}\" target=\"_blank\" rel=\"noreferrer\">${esc(f.name)}</a></div>`; }")
+  [void]$blk.Add("  links.innerHTML = html || \"<div>(no files)</div>\";")
+  [void]$blk.Add("}")
+  [void]$blk.Add("")
+  [void]$blk.Add("if (typeof refresh === \"function\") {")
+  [void]$blk.Add("  const _r0 = refresh;")
+  [void]$blk.Add("  refresh = async function(){ await _r0(); try{ renderBundle(await bundleLatest()); } catch(e){} };")
+  [void]$blk.Add("}")
+  [void]$blk.Add("")
+  [void]$blk.Add("document.addEventListener(\"DOMContentLoaded\", ()=>{")
+  [void]$blk.Add("  const bb = document.getElementById(\"buildBtn\");")
+  [void]$blk.Add("  if(bb){ bb.addEventListener(\"click\", ()=>{")
+  [void]$blk.Add("    const n = parseInt((document.getElementById(\"tailN\")||{value:\"2000\"}).value||\"2000\",10);")
+  [void]$blk.Add("    bundleBuild(n).then(()=>{ if(typeof refresh===\"function\") return refresh(); }).catch(e=>alert(e));")
+  [void]$blk.Add("  }); }")
+  [void]$blk.Add("  bundleLatest().then(renderBundle).catch(()=>{});")
+  [void]$blk.Add("});")
+  $js = $js + "`n" + ($blk.ToArray() -join "`n") + "`n"
+}
+WriteUtf8NoBomLf -Path $AppJs -Text ($js + "`n")
+Write-Host "PATCH_OK: app.js bundle UI installed" -ForegroundColor Green
+
+Write-Host "DONE_OK: restart UI server (Ctrl+C then rerun run_ui_v1.ps1) to load new endpoints" -ForegroundColor Green

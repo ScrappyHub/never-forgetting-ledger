@@ -1,0 +1,50 @@
+**********************
+PowerShell transcript start
+Start time: 20260121032048
+Username: MAIATICO-LAPTOP\Keira
+RunAs User: MAIATICO-LAPTOP\Keira
+Configuration Name: 
+Machine: MAIATICO-LAPTOP (Microsoft Windows NT 10.0.22631.0)
+Host Application: C:\Program Files\PowerShell\7\pwsh.dll
+Process ID: 7964
+PSVersion: 7.5.4
+PSEdition: Core
+GitCommitId: 7.5.4
+OS: Microsoft Windows 10.0.22631
+Platform: Win32NT
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1, 6.0, 7.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+WSManStackVersion: 3.0
+**********************
+**********************
+PowerShell transcript end
+End time: 20260121032100
+**********************
+**********************
+PowerShell transcript start
+Start time: 20260121032101
+Username: MAIATICO-LAPTOP\Keira
+RunAs User: MAIATICO-LAPTOP\Keira
+Configuration Name: 
+Machine: MAIATICO-LAPTOP (Microsoft Windows NT 10.0.22631.0)
+Host Application: C:\Program Files\PowerShell\7\pwsh.dll -NoProfile -File .\tools\pwsh\67_eval_with_org_user_token_overlay.ps1 -OrgId c63398ca-0a8c-47e3-b097-f1c8ac189e52 -AccessToken eyJhbGciOiJFUzI1NiIsImtpZCI6IjU2ZjZkMjJlLThhZTctNDg5Ny1iYTIwLWI3YzljNDdkMjM4ZiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2htbGloa2NpamphbXhkdXJ5ZGJ2LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJhMjVkNDlkOS1hNzdlLTRlZDAtOTY2OC0yMzlhZjA5YzIwZjciLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzY4OTg3MjU5LCJpYXQiOjE3Njg5ODM2NTksImVtYWlsIjoiYWxlY21haWF0aWNvMzZAZ21haWwuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbF92ZXJpZmllZCI6dHJ1ZX0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3Njg5ODM2NTl9XSwic2Vzc2lvbl9pZCI6ImM1YjgzZWNkLTRiNjUtNDU0Ny1hZWEzLWIyYmUxMDIwOWYzMCIsImlzX2Fub255bW91cyI6ZmFsc2V9.Bl0y5psh1l94REY1q_ypQY4JSMegADHil-0BmJI84F5kIpgX9nLH_9T9Nk2BmYQctwbYMcIBt78i2VPvsFwv5A -OperatorUserId a25d49d9-a77e-4ed0-9668-239af09c20f7 -Verbose
+Process ID: 13536
+PSVersion: 7.5.4
+PSEdition: Core
+GitCommitId: 7.5.4
+OS: Microsoft Windows 10.0.22631
+Platform: Win32NT
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1, 6.0, 7.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+WSManStackVersion: 3.0
+**********************
+VERBOSE: GI_PPI_HTTP POST https://hmlihkcijjamxdurydbv.supabase.co/rest/v1/rpc/gi_ppi_eval_with_org_credits_and_overlay
+VERBOSE: Requested HTTP/1.1 POST with 225-byte payload
+VERBOSE: Received HTTP/1.1 response of content type application/json of unknown size
+{"evaluation_id":"b04790c4-a646-4e3f-82dd-e9155990e3dd","proposal_hash":"2d59f890131c190b450ba99b1f32ed61a1772605f79eb8e62d849458753a1daa","decision":"DENY","reason_codes":["no_matching_rule"],"diagnostics":{"overlay":{"decision":"NO_OP","diagnostics":{"matched":false},"reason_codes":["overlay_noop_v0"]},"rule_order":999999,"matched_rule_id":"41081d71-8746-4b63-a02f-a836b7fb9159"}}
+**********************
+PowerShell transcript end
+End time: 20260121032103
+**********************

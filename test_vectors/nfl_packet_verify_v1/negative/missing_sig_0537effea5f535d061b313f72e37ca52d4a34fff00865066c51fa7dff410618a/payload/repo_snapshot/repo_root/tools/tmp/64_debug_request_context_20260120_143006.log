@@ -1,0 +1,30 @@
+**********************
+PowerShell transcript start
+Start time: 20260120143007
+Username: MAIATICO-LAPTOP\Keira
+RunAs User: MAIATICO-LAPTOP\Keira
+Configuration Name: 
+Machine: MAIATICO-LAPTOP (Microsoft Windows NT 10.0.22631.0)
+Host Application: C:\Program Files\PowerShell\7\pwsh.dll -NoProfile -ExecutionPolicy Bypass -Command $ErrorActionPreference='Stop';
+Start-Transcript -LiteralPath 'C:\Users\Keira\gi-ppi\tools\tmp\64_debug_request_context_20260120_143006.log' -Append | Out-Null;
+try {
+  & 'C:\Users\Keira\gi-ppi\tools\pwsh\64_debug_request_context.ps1' -Verbose @('-UseServiceRole')  @() ;
+} finally {
+  Stop-Transcript | Out-Null
+}
+Process ID: 25156
+PSVersion: 7.5.4
+PSEdition: Core
+GitCommitId: 7.5.4
+OS: Microsoft Windows 10.0.22631
+Platform: Win32NT
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1, 6.0, 7.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+WSManStackVersion: 3.0
+**********************
+PS>TerminatingError(64_debug_request_context.ps1): "A positional parameter cannot be found that accepts argument 'System.Object[]'."
+**********************
+PowerShell transcript end
+End time: 20260120143007
+**********************

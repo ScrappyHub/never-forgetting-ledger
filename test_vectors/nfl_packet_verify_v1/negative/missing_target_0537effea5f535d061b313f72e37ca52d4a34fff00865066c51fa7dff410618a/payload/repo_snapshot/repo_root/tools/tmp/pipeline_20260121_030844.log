@@ -1,0 +1,23 @@
+**********************
+PowerShell transcript start
+Start time: 20260121030854
+Username: MAIATICO-LAPTOP\Keira
+RunAs User: MAIATICO-LAPTOP\Keira
+Configuration Name: 
+Machine: MAIATICO-LAPTOP (Microsoft Windows NT 10.0.22631.0)
+Host Application: C:\Program Files\PowerShell\7\pwsh.dll -NoProfile -File .\tools\pwsh\67_eval_with_org_user_token_overlay.ps1 -OrgId c63398ca-0a8c-47e3-b097-f1c8ac189e52 -AccessToken eyJhbGciOiJFUzI1NiIsImtpZCI6IjU2ZjZkMjJlLThhZTctNDg5Ny1iYTIwLWI3YzljNDdkMjM4ZiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2htbGloa2NpamphbXhkdXJ5ZGJ2LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJhMjVkNDlkOS1hNzdlLTRlZDAtOTY2OC0yMzlhZjA5YzIwZjciLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzY4OTQxMjM0LCJpYXQiOjE3Njg5Mzc2MzQsImVtYWlsIjoiYWxlY21haWF0aWNvMzZAZ21haWwuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbF92ZXJpZmllZCI6dHJ1ZX0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3Njg5Mzc2MzR9XSwic2Vzc2lvbl9pZCI6ImVjOGYyMzYwLTRmOWEtNDM0NC05OWYyLWRiMGE4YWNiMzNmOCIsImlzX2Fub255bW91cyI6ZmFsc2V9.LzUGGnpgmjW04UHZT44jSh3Dq1aVm8NLUh8SQqJ6Oh0US0iqLhqpSspsqV7-5lp7OTuKpuPJoueV0eOsOReUhQ -OperatorUserId a25d49d9-a77e-4ed0-9668-239af09c20f7 -Verbose
+Process ID: 9156
+PSVersion: 7.5.4
+PSEdition: Core
+GitCommitId: 7.5.4
+OS: Microsoft Windows 10.0.22631
+Platform: Win32NT
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1, 6.0, 7.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+WSManStackVersion: 3.0
+**********************
+**********************
+PowerShell transcript end
+End time: 20260121030855
+**********************

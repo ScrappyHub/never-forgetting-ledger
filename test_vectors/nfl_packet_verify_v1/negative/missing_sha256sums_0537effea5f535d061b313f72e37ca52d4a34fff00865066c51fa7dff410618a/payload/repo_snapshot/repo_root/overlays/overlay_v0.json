@@ -1,0 +1,10 @@
+{
+  "schema_version": "GI_PPI_OVERLAY_V0",
+  "overlay_version": "overlay_v0",
+  "deny": [
+    {
+      "when": { "inputs.task_type": "deterministic_transform" },
+      "reason_code": "overlay_deny_task_type_v0"
+    }
+  ]
+}

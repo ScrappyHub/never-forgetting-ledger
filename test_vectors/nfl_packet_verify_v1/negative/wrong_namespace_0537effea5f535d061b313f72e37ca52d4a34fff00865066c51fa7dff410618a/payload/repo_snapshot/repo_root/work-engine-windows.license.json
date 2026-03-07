@@ -1,0 +1,18 @@
+{
+  "license_version": "v1",
+  "license_id": "25539f53-1b9e-488c-9e5f-5623d6721cc0",
+  "issued_at": "2026-01-29T23:10:43.531Z",
+  "org_id": "c63398ca-0a8c-47e3-b097-f1c8ac189e52",
+  "artifact_key": "work-engine-windows",
+  "plan_code": "starter_annual",
+  "entitlement_expires_at": "2027-01-21T17:57:05.257606+00:00",
+  "flags": {
+    "allow_overlays": false,
+    "allow_conversation": true,
+    "allow_audit_exports": false
+  },
+  "payload_hash": "e5e2f9f4daf26cef5d7bf8e5ec44f5227b058af2cbbc4d2eaeaee04da6ec1ac7",
+  "signature": "NFGUXt+p44xmi2thPiLGL+dbfZK+gpeK73QwSMeVy0IlNHG16WdyVSodvYfZ7AovRBXLWha3ZUkJR51gfVQ3Cg==",
+  "signature_alg": "Ed25519",
+  "signature_payload": "stable_json_v1"
+}

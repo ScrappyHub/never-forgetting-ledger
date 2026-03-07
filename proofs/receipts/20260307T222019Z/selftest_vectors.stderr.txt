@@ -1,0 +1,13 @@
+NFL_VERIFY_FAIL: SHA256_MISMATCH: sha256sums.txt expected=0a584607493cfdc
+fb82be047c53f1e4c0971b1666bb51bed6b027a75e1129b63 
+got=55f4e72f20c1c3b9acbc27df0cbc849f8c02ff45c5b77542c30ac19a6c9ea867
+At C:\dev\nfl\scripts\verify_packet_v1.ps1:7 char:27
++ function Die([string]$m){ throw ("NFL_VERIFY_FAIL: " + $m) }
++                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (NFL_VERIFY_FAIL...30ac1 
+   9a6c9ea867:String) [], RuntimeException
+    + FullyQualifiedErrorId : NFL_VERIFY_FAIL: SHA256_MISMATCH: sha256su 
+   ms.txt expected=0a584607493cfdcfb82be047c53f1e4c0971b1666bb51bed6b02  
+  7a75e1129b63 got=55f4e72f20c1c3b9acbc27df0cbc849f8c02ff45c5b77542c30   
+ ac19a6c9ea867
+ 

@@ -1,0 +1,12 @@
+{
+  "evaluation_id": "230f4575-4cbc-4f58-ad9b-404d74d48c7c",
+  "proposal_hash": "db68fc997fa61a80cb2b6a67db4b3bfd25187066c6a11df8eea1895551a42329",
+  "decision": "ALLOW",
+  "reason_codes": [
+    "allow_compute_deterministic_transform_v0"
+  ],
+  "diagnostics": {
+    "rule_order": 10,
+    "matched_rule_id": "bd109391-a4a3-47c0-845b-7875cbebae95"
+  }
+}

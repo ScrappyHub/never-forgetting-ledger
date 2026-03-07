@@ -1,0 +1,5 @@
+NFL_TIER0_FREEZE_OK
+LATEST_BUNDLE=C:\dev\nfl\proofs\receipts\20260307T031736Z
+FROZEN_BUNDLE=C:\dev\nfl\test_vectors\tier0_frozen\nfl_tier0_green_20260307
+LOCK_NOTE=C:\dev\nfl\docs\NFL_TIER0_LOCK.md
+STATUS_NOTE=C:\dev\nfl\docs\NFL_CANONICAL_STATUS.md

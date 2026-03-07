@@ -1,0 +1,9 @@
+{
+  "reason_codes": "allow_compute_deterministic_transform_v0",
+  "created_at_utc": "20260118T174844Z",
+  "proposal_hash": "db68fc997fa61a80cb2b6a67db4b3bfd25187066c6a11df8eea1895551a42329",
+  "decision": "ALLOW",
+  "policy_version_id": "f26a78a0-f0fc-4619-af59-d64c384451bc",
+  "run_id": "58795d3b-1a39-4430-91ac-6d16b10bec6e",
+  "evaluation_id": "5900644e-98b1-422b-8f56-4a6eb156935e"
+}

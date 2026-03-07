@@ -1,0 +1,14 @@
+{
+  "resource": "compute",
+  "schema_version": "GI_PPI_PROPOSAL_V0",
+  "attestations": {
+    "no_network": true,
+    "deterministic": true,
+    "no_external_data": true
+  },
+  "inputs": {
+    "task_type": "deterministic_transform"
+  },
+  "action": "REQUEST_EXECUTION",
+  "intent": "run_task"
+}

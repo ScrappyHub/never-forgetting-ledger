@@ -1,0 +1,17 @@
+{
+  "p_policy_version_id": "f26a78a0-f0fc-4619-af59-d64c384451bc",
+  "p_proposal": {
+    "resource": "compute",
+    "schema_version": "GI_PPI_PROPOSAL_V0",
+    "attestations": {
+      "no_network": true,
+      "deterministic": true,
+      "no_external_data": true
+    },
+    "inputs": {
+      "task_type": "deterministic_transform"
+    },
+    "action": "REQUEST_EXECUTION",
+    "intent": "run_task"
+  }
+}

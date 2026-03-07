@@ -1,0 +1,4 @@
+# NFL repo hygiene
+*.bak_*
+scripts/_scratch/
+proofs/_tmp/

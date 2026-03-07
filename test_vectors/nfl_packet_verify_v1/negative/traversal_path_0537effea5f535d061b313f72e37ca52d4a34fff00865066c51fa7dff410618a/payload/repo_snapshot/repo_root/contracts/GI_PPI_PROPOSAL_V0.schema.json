@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GI/PPI Proposal V0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "action", "resource", "intent", "inputs", "attestations"],
+  "properties": {
+    "schema_version": { "const": "GI_PPI_PROPOSAL_V0" },
+    "action": { "type": "string", "minLength": 1 },
+    "resource": { "type": "string", "minLength": 1 },
+    "intent": { "type": "string", "minLength": 1 },
+    "inputs": { "type": "object" },
+    "attestations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["no_network", "no_external_data", "deterministic"],
+      "properties": {
+        "no_network": { "type": "boolean" },
+        "no_external_data": { "type": "boolean" },
+        "deterministic": { "type": "boolean" }
+      }
+    }
+  }
+}
