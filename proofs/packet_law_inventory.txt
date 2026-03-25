@@ -1,0 +1,246 @@
+NFL PACKET LAW INVENTORY
+RepoRoot: C:\dev\nfl
+
+C:\dev\nfl\scripts\_audit_nfl_inbox_structure_v1.ps1
+  matches: sha256sums, manifest.json, SHA256
+
+C:\dev\nfl\scripts\_bk_neverlost_20260202_210309\_install_neverlost_v1_nfl.ps1
+  matches: SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_bk_neverlost_20260202_211209\_install_neverlost_v1_nfl.ps1
+  matches: SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_bk_neverlost_20260202_212433\_install_neverlost_v1_nfl.ps1
+  matches: SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_bk_neverlost_20260202_212433\_lib_neverlost_v1.ps1
+  matches: SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_bk_neverlost_20260202_214041\_install_neverlost_v1_nfl.ps1
+  matches: SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_bk_neverlost_20260202_214041\_lib_neverlost_v1.ps1
+  matches: SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_bk_neverlost_20260202_214044\_install_neverlost_v1_nfl.ps1
+  matches: SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_bk_neverlost_20260202_214044\_lib_neverlost_v1.ps1
+  matches: SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_bk_neverlost_20260202_220024\_install_neverlost_v1_nfl.ps1
+  matches: SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_bk_neverlost_20260202_220024\_lib_neverlost_v1.ps1
+  matches: SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_bk_neverlost_20260202_224050\_install_neverlost_v1_nfl.ps1
+  matches: SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_bk_neverlost_20260202_224050\_lib_neverlost_v1.ps1
+  matches: SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_bk_neverlost_20260202_232235\_install_neverlost_v1_nfl.ps1
+  matches: SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_bk_neverlost_20260202_232235\_lib_neverlost_v1.ps1
+  matches: SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_bk_neverlost_20260202_233441\_install_neverlost_v1_nfl.ps1
+  matches: SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_bk_neverlost_20260202_233441\_lib_neverlost_v1.ps1
+  matches: SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_bk_neverlost_20260202_233536\_install_neverlost_v1_nfl.ps1
+  matches: SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_bk_neverlost_20260202_233536\_lib_neverlost_v1.ps1
+  matches: SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_bootstrap_neverlost_v1_nfl.ps1
+  matches: ConvertTo-Json
+
+C:\dev\nfl\scripts\_bootstrap_neverlost_v1_nfl_CANON.ps1
+  matches: ConvertTo-Json
+
+C:\dev\nfl\scripts\_bootstrap_neverlost_v1_nfl_CANON2.ps1
+  matches: ConvertTo-Json
+
+C:\dev\nfl\scripts\_DIAG_sig_mismatch_CANON_v1.ps1
+  matches: Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_patch\_PATCH_nfl_add_bad_sha256sum_line_negative_v1.ps1
+  matches: sha256sums, packet_id, SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_patch\_PATCH_nfl_add_missing_sha256sums_negative_v1.ps1
+  matches: sha256sums, packet_id, SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_patch\_PATCH_nfl_add_missing_target_negative_v1.ps1
+  matches: sha256sums, packet_id, SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_patch\_PATCH_nfl_add_traversal_path_negative_v1.ps1
+  matches: sha256sums, packet_id, SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_patch\_PATCH_nfl_phase6b_expand_negative_suite_v1.ps1
+  matches: sha256sums, packet_id, SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_patch\_PATCH_nfl_phase6b_expand_suite_v3.ps1
+  matches: sha256sums, packet_id, SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_patch\_PATCH_restore_taxonomy_asserts_in_tier0_runner_v1.ps1
+  matches: SHA256
+
+C:\dev\nfl\scripts\_PATCH_bypass_lib_invoker_sign_verify_debug_CANON_v1.ps1
+  matches: Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_patch_debug_branch_marker_v1.ps1
+  matches: packet_id
+
+C:\dev\nfl\scripts\_PATCH_echo_outbox_agent_config_watchers_v1.ps1
+  matches: ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\_PATCH_echo_outbox_agent_heartbeat_receipt_v2.ps1
+  matches: ConvertTo-Json
+
+C:\dev\nfl\scripts\_PATCH_echo_outbox_agent_heartbeat_receipt_v3.ps1
+  matches: ConvertTo-Json
+
+C:\dev\nfl\scripts\_PATCH_echo_ui_add_bundle_api_v1.ps1
+  matches: sha256sums, SHA256
+
+C:\dev\nfl\scripts\_PATCH_fix_child_output_streams_CANON_v1.ps1
+  matches: Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_PATCH_fix_invoke_sshkeygen_async_CANON_v1.ps1
+  matches: Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_PATCH_fix_packet_constitution_v1_docs_and_vectors_v1.ps1
+  matches: sha256sums, packet_id, manifest.json, SHA256
+
+C:\dev\nfl\scripts\_PATCH_fix_sshkeygen_deadlock_CANON_v1.ps1
+  matches: Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_PATCH_install_echo_outbox_ui_v1.ps1
+  matches: sha256sums, SHA256, ConvertTo-Json
+
+C:\dev\nfl\scripts\_PATCH_install_echo_outbox_ui_v2.ps1
+  matches: sha256sums, SHA256, ConvertTo-Json
+
+C:\dev\nfl\scripts\_PATCH_overwrite_nfl_tier0_runner_v2.ps1
+  matches: sha256sums, Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_PATCH_overwrite_nfl_tier0_runner_v3.ps1
+  matches: sha256sums, Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_PATCH_overwrite_nfl_tier0_runner_v4.ps1
+  matches: sha256sums, Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_PATCH_overwrite_nfl_tier0_runner_v5.ps1
+  matches: sha256sums, Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_PATCH_overwrite_nfl_tier0_runner_v6.ps1
+  matches: sha256sums, Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_PATCH_overwrite_nfl_tier0_runner_v7.ps1
+  matches: sha256sums, Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_PATCH_overwrite_nfl_tier0_runner_v8.ps1
+  matches: sha256sums, Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_PATCH_packet_constitution_v1_docs_and_vectors.ps1
+  matches: sha256sums, packet_id, manifest.json, SHA256
+
+C:\dev\nfl\scripts\_PATCH_rewrite_sign_verify_debug_CANON_v1.ps1
+  matches: Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_PATCH_rotate_nfl_key_unencrypted_CANON_v10.ps1
+  matches: Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_PATCH_rotate_nfl_key_unencrypted_CANON_v11.ps1
+  matches: Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_PATCH_rotate_nfl_key_unencrypted_CANON_v12.ps1
+  matches: Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_PATCH_rotate_nfl_key_unencrypted_CANON_v13.ps1
+  matches: Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_PATCH_rotate_nfl_key_unencrypted_CANON_v14.ps1
+  matches: Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_PATCH_rotate_nfl_key_unencrypted_CANON_v15.ps1
+  matches: Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_PATCH_rotate_nfl_key_unencrypted_CANON_v16.ps1
+  matches: Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_PATCH_rotate_nfl_key_unencrypted_CANON_v17.ps1
+  matches: Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_PATCH_rotate_nfl_key_unencrypted_CANON_v18.ps1
+  matches: Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_PATCH_rotate_nfl_key_unencrypted_CANON_v9.ps1
+  matches: Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_scratch\quarantine\_bootstrap_neverlost_v1_nfl_FIXED.BAD_20260302T015734Z.ps1
+  matches: Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_scratch\quarantine\_install_neverlost_v1_nfl.BAD_20260302T030701Z.ps1
+  matches: SHA256
+
+C:\dev\nfl\scripts\_selftest_nfl_tier0_locked_v1.ps1
+  matches: sha256sums, Get-FileHash, SHA256, ConvertTo-Json
+
+C:\dev\nfl\scripts\_selftest_nfl_tier0_v1.ps1
+  matches: sha256sums, Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\_STAMP_packet_constitution_v1_docs_and_vectors_v2.ps1
+  matches: sha256sums, packet_id, manifest.json, SHA256
+
+C:\dev\nfl\scripts\debug_verify_find_principals_v1.ps1
+  matches: Get-FileHash, SHA256
+
+C:\dev\nfl\scripts\freeze_golden_vectors_v1.ps1
+  matches: packet_id, SHA256, ConvertTo-Json
+
+C:\dev\nfl\scripts\inventory_duplicate_packet_law_v1.ps1
+  matches: sha256sums, packet_id, manifest.json, Get-FileHash, SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\nfl_api_v1.ps1
+  matches: Get-FileHash, SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\nfl_build_packet_with_cpr_v1.ps1
+  matches: packet_id, ConvertTo-Json
+
+C:\dev\nfl\scripts\nfl_cli_v1.ps1
+  matches: Get-FileHash, SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\nfl_export_ledger_packet_v1.ps1
+  matches: sha256sums, packet_id, manifest.json, Get-FileHash, SHA256, ConvertTo-Json
+
+C:\dev\nfl\scripts\nfl_sign_ledger_packet_v1.ps1
+  matches: manifest.json
+
+C:\dev\nfl\scripts\nfl_verify_ledger_packet_v1.ps1
+  matches: sha256sums, packet_id, manifest.json, Get-FileHash, SHA256, ConvertFrom-Json
+
+C:\dev\nfl\scripts\nfl_verify_packet_with_cpr_v1.ps1
+  matches: packet_id, ConvertTo-Json
+
+C:\dev\nfl\scripts\scan_inbox.ps1
+  matches: sha256sums, packet_id, manifest.json, Get-FileHash, SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\selftest_vectors_v1.ps1
+  matches: sha256sums, packet_id, SHA256, ConvertFrom-Json, ConvertTo-Json
+
+C:\dev\nfl\scripts\selftest_verify_packet_v1.ps1
+  matches: SHA256, ConvertTo-Json
+
+C:\dev\nfl\scripts\verify_covenant_packet_v1.ps1
+  matches: sha256sums, SHA256, ConvertFrom-Json
+
+C:\dev\nfl\scripts\verify_packet_v1.ps1
+  matches: sha256sums, SHA256, ConvertFrom-Json
+
