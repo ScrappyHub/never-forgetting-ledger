@@ -1,0 +1,127 @@
+param(
+  [Parameter(Mandatory=$true)][string]$PacketDir
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+function Fail([string]$m){ throw ("NFL_VERIFY_FAIL:" + $m) }
+function Utf8NoBom(){ New-Object System.Text.UTF8Encoding($false) }
+function NormalizeLf([string]$t){
+  if($null -eq $t){ return "" }
+  $u = ($t -replace "`r`n","`n") -replace "`r","`n"
+  if(-not $u.EndsWith("`n")){ $u += "`n" }
+  return $u
+}
+function ReadUtf8([string]$Path){
+  if(-not (Test-Path -LiteralPath $Path -PathType Leaf)){ Fail ("READ_MISSING:" + $Path) }
+  [System.IO.File]::ReadAllText($Path,(Utf8NoBom))
+}
+function WriteUtf8NoBomLfText([string]$Path,[string]$Text){
+  $dir = Split-Path -Parent $Path
+  if($dir -and -not (Test-Path -LiteralPath $dir -PathType Container)){
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+  }
+  $u = NormalizeLf $Text
+  [System.IO.File]::WriteAllBytes($Path,(Utf8NoBom).GetBytes($u))
+}
+function Sha256HexBytes([byte[]]$Bytes){
+  $sha = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    $hash = $sha.ComputeHash($Bytes)
+    return ([System.BitConverter]::ToString($hash).Replace("-","").ToLowerInvariant())
+  }
+  finally {
+    $sha.Dispose()
+  }
+}
+function Sha256HexText([string]$Text){
+  $u = NormalizeLf $Text
+  return (Sha256HexBytes ((Utf8NoBom).GetBytes($u)))
+}
+function Sha256HexFile([string]$Path){
+  if(-not (Test-Path -LiteralPath $Path -PathType Leaf)){ Fail ("HASH_MISSING:" + $Path) }
+  (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+}
+
+$PacketDir = (Resolve-Path -LiteralPath $PacketDir).Path
+
+$ManifestPath = Join-Path $PacketDir "manifest.json"
+$IdPath       = Join-Path $PacketDir "packet_id.txt"
+$PayloadPath  = Join-Path $PacketDir "payload\ledger.ndjson"
+$SumPath      = Join-Path $PacketDir "sha256sums.txt"
+
+foreach($p in @($ManifestPath,$IdPath,$PayloadPath,$SumPath)){
+  if(-not (Test-Path -LiteralPath $p -PathType Leaf)){ Fail ("MISSING:" + $p) }
+}
+
+$manifestText = NormalizeLf (ReadUtf8 $ManifestPath)
+$payloadText  = NormalizeLf (ReadUtf8 $PayloadPath)
+
+$expectedPacketId = Sha256HexText $manifestText
+$actualPacketId = (NormalizeLf (ReadUtf8 $IdPath)).Trim()
+if($expectedPacketId -ne $actualPacketId){ Fail "PACKET_ID_MISMATCH" }
+
+$manifestObj = $manifestText | ConvertFrom-Json -ErrorAction Stop
+$expectedPayloadSha = [string]$manifestObj.payload.sha256
+$actualPayloadSha = Sha256HexText $payloadText
+if($expectedPayloadSha -ne $actualPayloadSha){ Fail "PAYLOAD_HASH_MISMATCH" }
+
+$sumLines = @(Get-Content -LiteralPath $SumPath -Encoding UTF8)
+$verified = 0
+foreach($line in @(@($sumLines))){
+  if([string]::IsNullOrWhiteSpace($line)){ continue }
+  if($line -notmatch '^([0-9a-f]{64})  (.+)$'){ Fail "BAD_SHA256SUM_LINE" }
+  $expectedHash = [string]$Matches[1]
+  $rel = [string]$Matches[2]
+  if($rel.Contains("..")){ Fail "TRAVERSAL_PATH" }
+  $full = Join-Path $PacketDir $rel
+  if(-not (Test-Path -LiteralPath $full -PathType Leaf)){ Fail "SHA256SUMS_TARGET_MISSING" }
+  $actualHash = Sha256HexFile $full
+  if($actualHash -ne $expectedHash){ Fail "SHA256SUM_MISMATCH" }
+  $verified++
+}
+
+$signatureVerified = $false
+$SigPath = Join-Path $PacketDir "signatures\manifest.sig"
+$EnvPath = Join-Path $PacketDir "signatures\sig_envelope.json"
+$PubPath = Join-Path $PacketDir "signatures\signer.pub"
+
+if(
+  (Test-Path -LiteralPath $SigPath -PathType Leaf) -or
+  (Test-Path -LiteralPath $EnvPath -PathType Leaf) -or
+  (Test-Path -LiteralPath $PubPath -PathType Leaf)
+){
+  foreach($p in @($SigPath,$EnvPath,$PubPath)){
+    if(-not (Test-Path -LiteralPath $p -PathType Leaf)){ Fail "SIGNATURE_ARTIFACT_MISSING" }
+  }
+
+  $envObj = (ReadUtf8 $EnvPath) | ConvertFrom-Json -ErrorAction Stop
+  $namespace = [string]$envObj.namespace
+  $principal = [string]$envObj.signer_identity
+  $target = [string]$envObj.target
+
+  if($target -ne "manifest.json"){ Fail "SIGNATURE_TARGET_UNEXPECTED" }
+  if([string]::IsNullOrWhiteSpace($namespace)){ Fail "SIGNATURE_NAMESPACE_MISSING" }
+  if([string]::IsNullOrWhiteSpace($principal)){ Fail "SIGNER_IDENTITY_MISSING" }
+
+  $AllowedPath = Join-Path $PacketDir "signatures\allowed_signers.tmp"
+  $pubText = (ReadUtf8 $PubPath).Trim()
+  WriteUtf8NoBomLfText $AllowedPath ($principal + " " + $pubText)
+
+  $ssh = (Get-Command ssh-keygen.exe -ErrorAction SilentlyContinue)
+  if($null -eq $ssh){ Fail "SSH_KEYGEN_MISSING" }
+
+  & $ssh.Source -Y verify -f $AllowedPath -I $principal -n $namespace -s $SigPath  | Out-Null
+  if($LASTEXITCODE -ne 0){ Fail "SIGNATURE_VERIFY_FAILED" }
+
+  Remove-Item -LiteralPath $AllowedPath -Force
+  $signatureVerified = $true
+}
+
+Write-Output "VERIFY_OK"
+Write-Output ("PACKET_ID=" + $actualPacketId)
+Write-Output ("PAYLOAD_SHA256=" + $actualPayloadSha)
+Write-Output ("SHA256SUMS_VERIFIED_COUNT=" + $verified)
+Write-Output ("SIGNATURE_VERIFIED=" + $signatureVerified.ToString().ToLowerInvariant())
+
