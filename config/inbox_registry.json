@@ -10,6 +10,26 @@
       "name": "nfl-raw-files",
       "path": "C:/dev/nfl/inbox/raw",
       "mode": "file"
+    },
+    {
+      "name": "watchtower-outbox",
+      "path": "C:/dev/watchtower/packets/outbox",
+      "mode": "packet"
+    },
+    {
+      "name": "neverlost-outbox",
+      "path": "C:/dev/neverlost/outbox",
+      "mode": "packet"
+    },
+    {
+      "name": "covenant-gate-outbox",
+      "path": "C:/Dev/covenant-gate/outbox",
+      "mode": "packet"
+    },
+    {
+      "name": "pie-outbox",
+      "path": "C:/dev/pie/outbox",
+      "mode": "packet"
     }
   ]
 }
