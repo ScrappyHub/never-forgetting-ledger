@@ -1,0 +1,15 @@
+{
+  "schema": "nfl.inbox_registry.v1",
+  "inboxes": [
+    {
+      "name": "nfl-packets-inbox",
+      "path": "C:/dev/nfl/packets/inbox",
+      "mode": "packet"
+    },
+    {
+      "name": "nfl-raw-files",
+      "path": "C:/dev/nfl/inbox/raw",
+      "mode": "file"
+    }
+  ]
+}

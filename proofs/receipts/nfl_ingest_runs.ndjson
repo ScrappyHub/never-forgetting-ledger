@@ -1,0 +1,4 @@
+﻿{"schema":"nfl.ingest.run.receipt.v1","utc":"2026-04-15T23:09:34Z","run_id":"20260415T230836Z","skipped":0,"failed":11,"processed":12,"scanned":23,"repo_root":"C:\\dev\\nfl","ok":false}
+
+{"schema":"nfl.ingest.run.receipt.v1","utc":"2026-04-16T23:36:22Z","run_id":"20260416T233621Z","skipped":23,"failed":0,"processed":1,"scanned":24,"repo_root":"C:\\dev\\nfl","ok":true}
+
