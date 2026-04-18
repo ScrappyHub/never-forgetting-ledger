@@ -5,39 +5,44 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-function Fail([string]$m){ throw ("NFL_INSTALL_INGEST_TASK_FAIL:" + $m) }
-
-$RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
-$Runner = Join-Path $RepoRoot "scripts\nfl_ingest_inboxes_v1.ps1"
-if(-not (Test-Path -LiteralPath $Runner -PathType Leaf)){ Fail "RUNNER_MISSING" }
+function Fail([string]$m){ throw ("NFL_INSTALL_TASK_FAIL:" + $m) }
 
 $TaskName = "NFL_Ingest_Inboxes_v1"
-$PSExe = (Get-Command powershell.exe -ErrorAction Stop).Source
+$PSExe    = "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe"
+$Runner   = Join-Path $RepoRoot "scripts\nfl_ingest_inboxes_v1.ps1"
 
-$Action = New-ScheduledTaskAction `
-  -Execute $PSExe `
-  -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{0}" -RepoRoot "{1}"' -f $Runner,$RepoRoot)
+if(-not (Test-Path -LiteralPath $Runner)){
+  Fail ("MISSING_RUNNER:" + $Runner)
+}
 
-$Trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1)
-$Trigger.Repetition = (New-TimeSpan -Minutes 1)
-$Trigger.RepetitionDuration = ([TimeSpan]::MaxValue)
+# Build command (must be ONE string)
+$Cmd = "`"$PSExe`" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$Runner`" -RepoRoot `"$RepoRoot`""
 
-$Principal = New-ScheduledTaskPrincipal `
-  -UserId $env:USERNAME `
-  -LogonType Interactive `
-  -RunLevel Limited
+# Delete existing task (ignore failure)
+& schtasks.exe /Delete /TN $TaskName /F 2>$null | Out-Null
 
-$Settings = New-ScheduledTaskSettingsSet `
-  -AllowStartIfOnBatteries `
-  -DontStopIfGoingOnBatteries
+# Create task (runs every 1 minute)
+$Create = @(
+  "/Create",
+  "/SC", "MINUTE",
+  "/MO", "1",
+  "/TN", $TaskName,
+  "/TR", $Cmd,
+  "/RL", "HIGHEST",
+  "/F"
+)
 
-Register-ScheduledTask `
-  -TaskName $TaskName `
-  -Action $Action `
-  -Trigger $Trigger `
-  -Principal $Principal `
-  -Settings $Settings `
-  -Force | Out-Null
+$proc = Start-Process -FilePath "schtasks.exe" -ArgumentList $Create -NoNewWindow -Wait -PassThru
+
+if($proc.ExitCode -ne 0){
+  Fail ("SCHTASKS_CREATE_FAILED:EXITCODE=" + $proc.ExitCode)
+}
+
+# Verify existence
+$verify = schtasks /Query /TN $TaskName 2>$null
+if(-not $verify){
+  Fail "TASK_NOT_FOUND_AFTER_CREATE"
+}
 
 Write-Output "NFL_INSTALL_INGEST_TASK_OK"
 Write-Output ("TASK_NAME=" + $TaskName)
