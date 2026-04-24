@@ -1,0 +1,10 @@
+{
+    "schema":  "nfl.ingest.last_run.v1",
+    "run_id":  "20260424T003102Z",
+    "utc":  "2026-04-24T00:31:02Z",
+    "scanned":  25,
+    "processed":  0,
+    "skipped":  25,
+    "failed":  0,
+    "ok":  true
+}
