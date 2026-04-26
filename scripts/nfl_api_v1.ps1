@@ -81,9 +81,58 @@ if($method -eq "GET" -and $path -eq "/health"){
         continue
       }
 
+      if($method -eq "POST" -and $path -eq "/commit"){
+        $reader = New-Object IO.StreamReader($req.InputStream)
+        try {
+          $raw = $reader.ReadToEnd()
+        } finally {
+          $reader.Dispose()
+        }
+
+        if([string]::IsNullOrWhiteSpace($raw)){
+          throw "EMPTY_BODY"
+        }
+
+        $body = $raw | ConvertFrom-Json
+
+        $hash = [string]$body.hash
+        if([string]::IsNullOrWhiteSpace($hash)){
+          throw "MISSING_HASH"
+        }
+
+        $p = Join-Path $RepoRoot "data\ledger.ndjson"
+
+        $row = [ordered]@{
+          schema = "nfl.ledger.commit.v2"
+          hash = $hash.ToLowerInvariant()
+          artifact = [string]$body.artifact
+          timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+          source_repo = [string]$body.source_repo
+          source_repo_path = [string]$body.source_repo_path
+          branch = [string]$body.branch
+          commit_hash = [string]$body.commit_hash
+          remote = [string]$body.remote
+          event_type = [string]$body.event_type
+        }
+
+        $line = $row | ConvertTo-Json -Compress -Depth 20
+        Add-Content -LiteralPath $p -Value $line -Encoding UTF8
+
+        Json $res @{
+          status = "COMMIT_OK"
+          item = $row
+        }
+        continue
+      }
       if($method -eq "GET" -and $path -eq "/recent"){
         $p = Join-Path $RepoRoot "data\ledger.ndjson"
         $items = Read-Ndjson $p
+
+        $sourceRepo = [string]$req.QueryString["source_repo"]
+        if(-not [string]::IsNullOrWhiteSpace($sourceRepo)){
+          $items = @($items | Where-Object { [string]$_.source_repo -eq $sourceRepo })
+        }
+
         [array]::Reverse($items)
         Json $res @{
           status = "OK"
