@@ -57,7 +57,21 @@ try {
         continue
       }
 
-      if($method -eq "GET" -and $path -eq "/health"){
+            if($method -eq "GET" -and $path -eq "/"){
+        Json $res @{
+          status = "OK"
+          service = "nfl.api.v1"
+          message = "Never Forgetting Ledger API"
+          health = "/health"
+          recent = "/recent"
+          ingest_last_run = "/ingest/last-run"
+          ingest_runs = "/ingest/runs"
+          ingest_state = "/ingest/state"
+          ingest_failures = "/ingest/failures"
+        }
+        continue
+      }
+if($method -eq "GET" -and $path -eq "/health"){
         Json $res @{
           status = "OK"
           service = "nfl.api.v1"
