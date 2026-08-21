@@ -2,3 +2,10 @@
 *.bak_*
 scripts/_scratch/
 proofs/_tmp/
+
+# archived cruft pending manual deletion
+_to_delete/
+
+# high-churn runtime telemetry (kept on disk, not version-controlled)
+proofs/receipts/nfl_ingest_runs.ndjson
+runtime/ingest/last_run.json
