@@ -1,18 +1,19 @@
-# NFL Durable Ledger v1 — tamper-evidence
+# NFL Durable Ledger v1 — tamper-evidence + signed seal
 
-**Status:** brick 1 complete and verified on the real machine (2026-08-25).
-**Scope:** non-mutating tamper-evidence over `data/ledger.ndjson`. No change to the
-commit/write path. Self-contained in NFL — does **not** depend on CPR or any external
-service (durable-ledger integrity can be proven even if CPR/SaaS is absent).
+**Status:** bricks 1 and 3 complete and verified on the real machine (2026-08-25).
+**Scope:** non-mutating tamper-evidence + cryptographic sealing over `data/ledger.ndjson`.
+No change to the commit/write path. Self-contained in NFL — does **not** depend on CPR
+or any external service (durable-ledger integrity can be proven offline).
 
-## What was added
+## Components
 
-- `scripts/nfl_ledger_checkpoint_v1.ps1` — `-Mode checkpoint` and `-Mode verify`.
-- `scripts/_selftest_nfl_ledger_checkpoint_v1.ps1` — negative proof (temp-dir, non-destructive).
+- `scripts/nfl_ledger_checkpoint_v1.ps1` — `checkpoint` / `verify` (linked hash chain).
+- `scripts/_selftest_nfl_ledger_checkpoint_v1.ps1` — tamper-evidence negative proof.
+- `scripts/nfl_ledger_seal_v1.ps1` — `seal` / `verify-seal` (ssh-keygen signature over the checkpoint head).
+- `scripts/_selftest_nfl_ledger_seal_v1.ps1` — forgery negative proof.
+- `scripts/_RUN_nfl_durable_ledger_green_v1.ps1` — one-command standing gate.
 
 ## Chain construction (self-consistent v1)
-
-For each ledger record, in file order:
 
 ```
 canon_i = ConvertTo-Json(-Compress) of [ordered]{ hash, artifact, timestamp }
@@ -21,59 +22,64 @@ head_0  = sha256_hex( utf8( "nfl.ledger.chain.v1" + "\n" + rec_0 ) )
 head_i  = sha256_hex( utf8( head_{i-1} + "\n" + rec_i ) )
 ```
 
-`checkpoint` appends `{ schema, utc, chain_algo, genesis, count, head, ledger_sha256,
-first_rec, last_rec }` to `proofs/checkpoints/nfl_ledger_checkpoint_v1.ndjson`
-(and writes `proofs/checkpoints/latest.json`). It canonicalizes by *parsing* each JSON
-record and re-serializing, so cosmetic differences (CR, spacing, the writer's
-blank-line quirk) don't affect the chain, but any semantic change does.
-
 `verify` recomputes the chain over the current ledger's first *N* records (N = the last
 checkpoint's `count`) and compares to the checkpoint `head`:
+match+count≥N → `NFL_LEDGER_VERIFY_OK`; count<N → `LEDGER_TRUNCATED`; head differs → `PREFIX_TAMPERED`.
 
-- head matches, count ≥ N → `NFL_LEDGER_VERIFY_OK`, reporting `APPENDED_SINCE_CHECKPOINT`.
-- count < N → `NFL_LEDGER_VERIFY_FAIL:LEDGER_TRUNCATED`.
-- head differs → `NFL_LEDGER_VERIFY_FAIL:PREFIX_TAMPERED`.
+## Seal (brick 3)
+
+`seal` signs a canonical payload binding `head` / `count` / `ledger_sha256` with
+`proofs/keys/id_ed25519` (OpenSSH `ssh-keygen -Y sign`, namespace `nfl/ledger-seal`),
+storing the seal under `proofs/checkpoints/seals/<runid>/`, and self-verifies before
+declaring OK.
+
+`verify-seal` verifies **against a TRUSTED pinned pubkey** (default
+`proofs/keys/id_ed25519.pub`, overridable via `-TrustedPubPath`) — *not* the
+`allowed_signers` bundled in the seal, so swapping the whole signature bundle is not
+sufficient to forge a seal. It then re-checks that the current ledger still chains to the
+sealed head. Both must hold → `NFL_LEDGER_SEAL_VERIFY_OK`.
 
 ## Verification evidence (run on C:\dev\nfl)
 
-Happy path:
+Tamper-evidence self-test:
 
 ```
-checkpoint -> NFL_LEDGER_CHECKPOINT_OK  COUNT=12  HEAD=2bd9837883787679813d6a87a304040622d2e7f7acdd54acd87e71c473d56f07
-verify     -> NFL_LEDGER_VERIFY_OK  CHECKPOINT_PREFIX_INTACT=12  APPENDED_SINCE_CHECKPOINT=0
+PASS CLEAN | PASS APPEND | PASS TAMPER | PASS TRUNCATE | PASS REORDER  -> NFL_LEDGER_SELFTEST_OK (5/5)
 ```
 
-Negative proof (`_selftest_nfl_ledger_checkpoint_v1.ps1`):
+Seal happy path + forgery self-test:
 
 ```
-PASS  CLEAN     exit=0
-PASS  APPEND    exit=0   (legitimate append accepted, APPENDED=1)
-PASS  TAMPER    exit=1   (mutated record rejected: PREFIX_TAMPERED)
-PASS  TRUNCATE  exit=1   (dropped record rejected: LEDGER_TRUNCATED)
-PASS  REORDER   exit=1   (swapped records rejected: PREFIX_TAMPERED)
-RESULT=5/5
-NFL_LEDGER_SELFTEST_OK
+seal        -> NFL_LEDGER_SEAL_OK
+verify-seal -> NFL_LEDGER_SEAL_VERIFY_OK (SIGNATURE=VALID, LEDGER_MATCHES_SEALED_HEAD=YES)
+
+PASS CLEAN
+PASS WRONG_KEY          (forged signer rejected: SIG_INVALID)
+PASS TAMPERED_PAYLOAD   (edited payload rejected: SIG_INVALID)
+PASS ALTERED_SEAL_HEAD  (edited seal.json rejected: LEDGER_HEAD_MISMATCH)
+PASS LEDGER_MUTATED     (mutated ledger rejected: LEDGER_HEAD_MISMATCH)
+-> NFL_LEDGER_SEAL_SELFTEST_OK (5/5)
 ```
+
+Standing gate: `_RUN_nfl_durable_ledger_green_v1.ps1` → `NFL_DURABLE_LEDGER_GREEN_OK`.
 
 ## Deliberate limits (documented, not hidden)
 
 - **Self-consistent, not yet cross-implementation portable.** The chain is defined by
-  PowerShell `ConvertTo-Json -Compress` canonicalization. An independent (e.g. Python)
-  verifier would need to match that canonicalization exactly. Cross-impl portability is
-  export/interop work (a later brick).
-- **Checkpoints are not yet signed.** A checkpoint is currently an unsigned anchor.
-  Signing/sealing the checkpoint head (reusing the existing ssh-keygen signing lane) is
-  the next brick — it turns "the ledger matches my checkpoint" into "the ledger matches
-  a checkpoint I cryptographically sealed."
-- **Checkpoints/receipts are on-disk runtime** (gitignored), consistent with the ledger
-  itself being on-disk data rather than version-controlled.
+  PowerShell `ConvertTo-Json -Compress` canonicalization; an independent (e.g. Python)
+  verifier would need to match it. Portability is export/interop work (a later brick).
+- **Trust anchor is local.** `verify-seal` pins to the repo's `id_ed25519.pub`. A fully
+  independent verifier must obtain the authorized pubkey out-of-band — this is exactly
+  where NeverLost / a trust-bundle belongs (WBS 10). Today the anchor is the local key.
+- **Checkpoints/seals/receipts are on-disk runtime** (gitignored), consistent with the
+  ledger itself being on-disk data rather than version-controlled.
 
-## Next bricks (in order)
+## Next bricks
 
-1. **Sign the checkpoint** (seal): sign `head` with `proofs/keys/id_ed25519`, verify the
-   seal in `verify`. Negative tests: wrong key, altered head.
-2. **Embed chain in commit** (optional): add `seq` + `prev_head` to each new record so the
-   ledger is self-chaining at write time, not only via external checkpoint.
-3. **Export + independent export verification** (portable canonicalization).
-4. **Wire the durable-ledger gate into a standing runner** so integrity is re-proven
-   routinely (kept independent of the CPR-requiring CLI full-green so it works offline).
+1. **Export + independent portable verification** — define a byte-canonical record form
+   (independent of PowerShell JSON) and a small standalone verifier so a third party can
+   verify a sealed export without running the NFL environment.
+2. **Trust-bundle input** — let `verify-seal` accept an authorized-signer bundle
+   (NeverLost) instead of the local pinned key.
+3. **Embed chain in commit (optional)** — add `seq` + `prev_head` at write time so the
+   ledger is self-chaining, not only via external checkpoint.
