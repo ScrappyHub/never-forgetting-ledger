@@ -9,3 +9,9 @@ _to_delete/
 # high-churn runtime telemetry (kept on disk, not version-controlled)
 proofs/receipts/nfl_ingest_runs.ndjson
 runtime/ingest/last_run.json
+
+# durable-ledger runtime outputs (kept on disk, not version-controlled)
+proofs/runs/
+proofs/checkpoints/
+proofs/receipts/nfl.ledger.verify.ndjson
+proofs/receipts/nfl.ledger.selftest.ndjson
