@@ -15,3 +15,6 @@ proofs/runs/
 proofs/checkpoints/
 proofs/receipts/nfl.ledger.verify.ndjson
 proofs/receipts/nfl.ledger.selftest.ndjson
+
+# portable export bundles (on-disk runtime)
+proofs/exports/
