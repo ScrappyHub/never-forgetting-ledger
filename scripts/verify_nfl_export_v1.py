@@ -81,6 +81,13 @@ def main():
     ap.add_argument("--trust-bundle", default=None,
                     help="authorize the signer via a neverlost.trust_bundle.v1 file "
                          "(signer must be listed for the export's namespace)")
+    ap.add_argument("--root-pub", default=None,
+                    help="pinned NeverLost root pubkey; verify the trust bundle's own "
+                         "signature against it before trusting the bundle")
+    ap.add_argument("--bundle-sig", default=None,
+                    help="path to the bundle signature (default: <trust-bundle>.sig)")
+    ap.add_argument("--bundle-namespace", default="nfl/ingest-receipt",
+                    help="namespace the trust bundle is signed under (NeverLost convention)")
     args = ap.parse_args()
 
     d = args.export_dir
@@ -143,6 +150,30 @@ def main():
         # made by a key the bundle lists for THIS namespace. Anchor is the bundle, not
         # the seal-bundled allowed_signers.
         bundle = load_bundle(args.trust_bundle)
+
+        # Root-of-trust: verify the bundle's OWN signature against a pinned root pubkey
+        # before trusting its contents. The root pubkey must come out-of-band.
+        if args.root_pub:
+            bsig = args.bundle_sig or (args.trust_bundle + ".sig")
+            if not os.path.isfile(bsig):
+                fail("BUNDLE_SIG_MISSING:" + bsig)
+            rootpub = read_text(args.root_pub).strip()
+            fd, tmp = tempfile.mkstemp(prefix="nfl_root_allowed_", suffix=".txt")
+            with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
+                f.write("neverlost.root " + rootpub + "\n")
+            with open(args.trust_bundle, "rb") as f:
+                bundle_bytes = f.read()
+            try:
+                bp = ssh_verify(tmp, "neverlost.root", args.bundle_namespace, bsig, bundle_bytes)
+            finally:
+                os.remove(tmp)
+            if bp.returncode != 0:
+                print("SSHKEYGEN_STDERR:", bp.stderr.decode("utf-8", "replace").strip())
+                fail("BUNDLE_SIG_INVALID")
+            print("BUNDLE_SIG_OK root=%s ns=%s" % (args.root_pub, args.bundle_namespace))
+        else:
+            print("WARNING: BUNDLE_UNVERIFIED (no --root-pub; bundle contents trusted on faith)")
+
         authorized, all_cores = resolve_authorized(bundle, namespace)
         print("TRUST=bundle(%s) authorized_keys_for_ns=%d" % (args.trust_bundle, len(authorized)))
         ok = False

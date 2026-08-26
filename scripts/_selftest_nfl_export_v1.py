@@ -100,6 +100,30 @@ def main():
 
         r = run(exp, "--trust-bundle", os.path.join(tmp, "b_wrongns.json"))
         check("BUNDLE_WRONG_NS", r.returncode == 1 and "NAMESPACE_NOT_AUTHORIZED" in r.stdout, "rc=%d" % r.returncode)
+
+        # ---- root-of-trust: the bundle's OWN signature must verify against a pinned root ----
+        BNS = "neverlost/trust-bundle"
+        genkey(os.path.join(tmp, "root"))
+        subprocess.run(["ssh-keygen", "-Y", "sign", "-f", os.path.join(tmp, "root"), "-n", BNS,
+                        os.path.join(tmp, "b_ok.json")], capture_output=True, check=True)
+
+        r = run(exp, "--trust-bundle", os.path.join(tmp, "b_ok.json"), "--bundle-namespace", BNS,
+                "--root-pub", os.path.join(tmp, "root.pub"))
+        check("ROOT_OK", r.returncode == 0 and "BUNDLE_SIG_OK" in r.stdout and "NFL_EXPORT_VERIFY_OK" in r.stdout, "rc=%d" % r.returncode)
+
+        r = run(exp, "--trust-bundle", os.path.join(tmp, "b_ok.json"), "--bundle-namespace", BNS,
+                "--root-pub", os.path.join(tmp, "evil.pub"))
+        check("ROOT_WRONG", r.returncode == 1 and "BUNDLE_SIG_INVALID" in r.stdout, "rc=%d" % r.returncode)
+
+        bt = os.path.join(tmp, "b_tamper.json")
+        shutil.copyfile(os.path.join(tmp, "b_ok.json"), bt)
+        shutil.copyfile(os.path.join(tmp, "b_ok.json.sig"), bt + ".sig")
+        tb = open(bt, encoding="utf-8").read().replace('"key_id": "k1"', '"key_id": "kX"')
+        with open(bt, "w", encoding="utf-8", newline="") as f:
+            f.write(tb)
+        r = run(exp, "--trust-bundle", bt, "--bundle-namespace", BNS,
+                "--root-pub", os.path.join(tmp, "root.pub"))
+        check("ROOT_TAMPER", r.returncode == 1 and "BUNDLE_SIG_INVALID" in r.stdout, "rc=%d" % r.returncode)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
