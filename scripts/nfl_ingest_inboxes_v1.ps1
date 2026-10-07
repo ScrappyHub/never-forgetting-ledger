@@ -41,9 +41,24 @@ function Write-Utf8NoBomLf([string]$Path, [string]$Text) {
   [System.IO.File]::WriteAllBytes($Path, (New-Utf8NoBom).GetBytes($u))
 }
 
-function Append-JsonLine([string]$Path, [hashtable]$Obj) {
+function Append-JsonLine([string]$Path, $Obj) {
+  # Clean single-line NDJSON append (LF only, no blank line between records).
   $line = (($Obj | ConvertTo-Json -Compress -Depth 20) + "`n")
-  Add-Content -LiteralPath $Path -Value $line -Encoding UTF8
+  [System.IO.File]::AppendAllText($Path, $line, (New-Utf8NoBom))
+}
+
+function Rotate-IfLarge([string]$Path, [long]$MaxBytes) {
+  # Bound unbounded telemetry growth: archive the file once it exceeds MaxBytes,
+  # then let it be recreated fresh on the next append. Retains history (append-only)
+  # under an archive/ subfolder. Never call this on functional state (dedup) files.
+  if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return }
+  if ((Get-Item -LiteralPath $Path).Length -le $MaxBytes) { return }
+  $archDir = Join-Path (Split-Path -Parent $Path) "archive"
+  Ensure-Dir $archDir
+  $stamp = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
+  $base  = [System.IO.Path]::GetFileNameWithoutExtension($Path)
+  $ext   = [System.IO.Path]::GetExtension($Path)
+  Move-Item -LiteralPath $Path -Destination (Join-Path $archDir ($base + "_" + $stamp + $ext)) -Force
 }
 
 function Resolve-FullPath([string]$PathValue) {
@@ -285,6 +300,9 @@ foreach ($inbox in @($config.inboxes)) {
     }
   }
 }
+
+# Bound the run-log telemetry (gitignored) before appending this run's receipt.
+Rotate-IfLarge $RunPath (5MB)
 
 Append-JsonLine $RunPath ([ordered]@{
   schema    = "nfl.ingest.run.receipt.v1"

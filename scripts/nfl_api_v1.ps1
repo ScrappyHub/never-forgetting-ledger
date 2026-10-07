@@ -1,32 +1,55 @@
 param(
   [Parameter(Mandatory=$false)][string]$RepoRoot = ".",
-  [Parameter(Mandatory=$false)][string]$Prefix = "http://127.0.0.1:8086/"
+  [Parameter(Mandatory=$false)][string]$Prefix = "http://127.0.0.1:8086/",
+  [Parameter(Mandatory=$false)][int]$DefaultLimit = 500
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-function Json($res,$obj){
+# Only localhost origins (or no Origin header at all, i.e. curl/PowerShell) are allowed.
+# A browser always sends Origin on cross-origin requests, so this blocks hostile web
+# pages from driving the mutating endpoints (/commit, /ingest/control) while the API runs.
+function Test-LocalOrigin([string]$origin){
+  if([string]::IsNullOrEmpty($origin)){ return $true }
+  return ($origin -match '^https?://(127\.0\.0\.1|localhost)(:\d+)?$')
+}
+
+function Json($res,$obj,[string]$allowOrigin,[int]$status = 200){
   $json = $obj | ConvertTo-Json -Compress -Depth 20
   $bytes = [Text.UTF8Encoding]::new($false).GetBytes($json + "`n")
 
-  $res.Headers["Access-Control-Allow-Origin"] = "*"
-  $res.Headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-  $res.Headers["Access-Control-Allow-Headers"] = "Content-Type"
+  if(-not [string]::IsNullOrEmpty($allowOrigin)){
+    $res.Headers["Access-Control-Allow-Origin"] = $allowOrigin
+    $res.Headers["Vary"] = "Origin"
+    $res.Headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    $res.Headers["Access-Control-Allow-Headers"] = "Content-Type"
+  }
+  $res.StatusCode = $status
   $res.ContentType = "application/json; charset=utf-8"
   $res.ContentLength64 = $bytes.Length
   $res.OutputStream.Write($bytes,0,$bytes.Length)
   $res.OutputStream.Close()
 }
 
-function Read-Ndjson($Path){
+# Read only the last $Limit non-blank NDJSON records (bounded memory; -Tail avoids
+# loading the whole file). Returns newest-last; caller reverses if it wants newest-first.
+function Read-NdjsonTail($Path,[int]$Limit){
   $items = @()
   if(Test-Path -LiteralPath $Path -PathType Leaf){
-    $items = Get-Content -LiteralPath $Path |
+    $lines = Get-Content -LiteralPath $Path -Tail $Limit -Encoding UTF8
+    $items = @($lines |
       Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
-      ForEach-Object { $_ | ConvertFrom-Json }
+      ForEach-Object { $_ | ConvertFrom-Json })
   }
   return @($items)
+}
+
+function Get-Limit($req,[int]$fallback){
+  $q = [string]$req.QueryString["limit"]
+  $n = 0
+  if([int]::TryParse($q,[ref]$n) -and $n -gt 0 -and $n -le 100000){ return $n }
+  return $fallback
 }
 
 $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
@@ -51,13 +74,21 @@ try {
     try {
       $path = $req.Url.AbsolutePath
       $method = $req.HttpMethod.ToUpperInvariant()
+      $origin = [string]$req.Headers["Origin"]
+
+      # Origin guard: reject any request that carries a non-local Origin header.
+      if(-not (Test-LocalOrigin $origin)){
+        Json $res @{ status = "FORBIDDEN"; message = "cross-origin request rejected" } "" 403
+        continue
+      }
+      $allow = if([string]::IsNullOrEmpty($origin)){ "" } else { $origin }
 
       if($method -eq "OPTIONS"){
-        Json $res @{ status = "OK" }
+        Json $res @{ status = "OK" } $allow
         continue
       }
 
-            if($method -eq "GET" -and $path -eq "/"){
+      if($method -eq "GET" -and $path -eq "/"){
         Json $res @{
           status = "OK"
           service = "nfl.api.v1"
@@ -68,16 +99,17 @@ try {
           ingest_runs = "/ingest/runs"
           ingest_state = "/ingest/state"
           ingest_failures = "/ingest/failures"
-        }
+        } $allow
         continue
       }
-if($method -eq "GET" -and $path -eq "/health"){
+
+      if($method -eq "GET" -and $path -eq "/health"){
         Json $res @{
           status = "OK"
           service = "nfl.api.v1"
           repo_root = $RepoRoot
           prefix = $Prefix
-        }
+        } $allow
         continue
       }
 
@@ -100,8 +132,6 @@ if($method -eq "GET" -and $path -eq "/health"){
           throw "MISSING_HASH"
         }
 
-        $p = Join-Path $RepoRoot "data\ledger.ndjson"
-
         $row = [ordered]@{
           schema = "nfl.ledger.commit.v2"
           hash = $hash.ToLowerInvariant()
@@ -115,18 +145,22 @@ if($method -eq "GET" -and $path -eq "/health"){
           event_type = [string]$body.event_type
         }
 
-        $line = $row | ConvertTo-Json -Compress -Depth 20
-        Add-Content -LiteralPath $p -Value $line -Encoding UTF8
+        # Clean single-line NDJSON append (no BOM, LF terminator, no blank lines).
+        $p = Join-Path $RepoRoot "data\ledger.ndjson"
+        $line = ($row | ConvertTo-Json -Compress -Depth 20) + "`n"
+        [System.IO.File]::AppendAllText($p, $line, [Text.UTF8Encoding]::new($false))
 
         Json $res @{
           status = "COMMIT_OK"
           item = $row
-        }
+        } $allow
         continue
       }
+
       if($method -eq "GET" -and $path -eq "/recent"){
         $p = Join-Path $RepoRoot "data\ledger.ndjson"
-        $items = Read-Ndjson $p
+        $limit = Get-Limit $req $DefaultLimit
+        $items = Read-NdjsonTail $p $limit
 
         $sourceRepo = [string]$req.QueryString["source_repo"]
         if(-not [string]::IsNullOrWhiteSpace($sourceRepo)){
@@ -137,8 +171,9 @@ if($method -eq "GET" -and $path -eq "/health"){
         Json $res @{
           status = "OK"
           count = $items.Count
+          limit = $limit
           items = @($items)
-        }
+        } $allow
         continue
       }
 
@@ -148,37 +183,40 @@ if($method -eq "GET" -and $path -eq "/health"){
           Json $res @{
             status = "OK"
             item = (Get-Content -LiteralPath $p -Raw | ConvertFrom-Json)
-          }
+          } $allow
         } else {
-          Json $res @{ status = "OK"; item = $null }
+          Json $res @{ status = "OK"; item = $null } $allow
         }
         continue
       }
 
       if($method -eq "GET" -and $path -eq "/ingest/runs"){
         $p = Join-Path $RepoRoot "proofs\receipts\nfl_ingest_runs.ndjson"
-        $items = Read-Ndjson $p
+        $limit = Get-Limit $req $DefaultLimit
+        $items = Read-NdjsonTail $p $limit
         [array]::Reverse($items)
-        Json $res @{ status = "OK"; items = @($items) }
+        Json $res @{ status = "OK"; count = $items.Count; limit = $limit; items = @($items) } $allow
         continue
       }
 
       if($method -eq "GET" -and $path -eq "/ingest/state"){
         $p = Join-Path $RepoRoot "proofs\receipts\nfl_ingest_state.ndjson"
-        $items = Read-Ndjson $p
+        $limit = Get-Limit $req $DefaultLimit
+        $items = Read-NdjsonTail $p $limit
         [array]::Reverse($items)
-        Json $res @{ status = "OK"; items = @($items) }
+        Json $res @{ status = "OK"; count = $items.Count; limit = $limit; items = @($items) } $allow
         continue
       }
 
       if($method -eq "GET" -and $path -eq "/ingest/failures"){
         $p = Join-Path $RepoRoot "proofs\receipts\nfl_ingest_state.ndjson"
-        $items = @(Read-Ndjson $p | Where-Object {
+        $limit = Get-Limit $req $DefaultLimit
+        $items = @(Read-NdjsonTail $p $limit | Where-Object {
           ($_.ok -eq $false) -or
           ([string]$_.stderr -match "FAIL|ERROR|CPR_VERIFY_NOT_GREEN|NFL_VERIFY_FAIL")
         })
         [array]::Reverse($items)
-        Json $res @{ status = "OK"; items = @($items) }
+        Json $res @{ status = "OK"; count = $items.Count; limit = $limit; items = @($items) } $allow
         continue
       }
 
@@ -212,7 +250,7 @@ if($method -eq "GET" -and $path -eq "/health"){
           status = "OK"
           action = $action
           output = ($out -join "`n")
-        }
+        } $allow
         continue
       }
 
@@ -220,12 +258,12 @@ if($method -eq "GET" -and $path -eq "/health"){
         status = "NOT_FOUND"
         message = "endpoint not found"
         path = $path
-      }
+      } $allow 404
     } catch {
       Json $res @{
         status = "ERROR"
         message = [string]$_.Exception.Message
-      }
+      } "" 400
     }
   }
 }

@@ -53,9 +53,9 @@ $Ledger   = Join-Path $DataDir "ledger.ndjson"
 
 EnsureDir $DataDir
 
-# initialize ledger if missing
+# initialize ledger if missing (truly empty: no leading blank line)
 if(-not (Test-Path -LiteralPath $Ledger -PathType Leaf)){
-  WriteUtf8NoBomLfText $Ledger ""
+  [System.IO.File]::WriteAllText($Ledger, "", (Utf8NoBom))
 }
 
 # -------------------------------------------------
@@ -76,7 +76,8 @@ if($Command -eq "commit"){
   }
 
   $line = ($obj | ConvertTo-Json -Compress)
-  Add-Content -LiteralPath $Ledger -Value ($line + "`n") -Encoding UTF8
+  # Clean single-line NDJSON append (LF only, no extra blank line).
+  [System.IO.File]::AppendAllText($Ledger, ($line + "`n"), (Utf8NoBom))
 
   Write-Output "COMMIT_OK"
   Write-Output ("HASH=" + $obj.hash)
