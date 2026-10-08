@@ -45,13 +45,16 @@ valid anchor.
 
 ## Deliberate limits (documented, not hidden)
 
-- **Trust-bundle + root-of-trust are in the portable (Python) verifier.** The PS-side
-  `verify-seal` still pins a single key; `-TrustBundlePath` there is a parity follow-up.
+- **Trust-bundle + root-of-trust now in BOTH verifiers.** The portable Python verifier
+  (`verify_nfl_export_v1.py`) and the live PowerShell `verify-seal`
+  (`-TrustBundlePath`/`-RootPubPath`/`-BundleNamespace`) enforce the same model: verify
+  the bundle's own signature against a pinned NeverLost root, then authorize the signer
+  against the bundle for the namespace. `verify-seal` still defaults to a single-key pin
+  when no bundle is supplied.
 - **The dev bundle is self-signed** (no separate NeverLost root key yet). Root-of-trust
   works by pinning that key out-of-band; a distinct root key is a NeverLost-side change.
 - **Checkpoints/seals/exports/receipts are on-disk runtime** (gitignored).
 
 ## Next bricks (optional)
 
-1. **PS-side trust-bundle + root-of-trust parity** on `verify-seal`.
-2. **Embed chain in commit** — `seq` + `prev_head` at write time (self-chaining ledger).
+1. **Embed chain in commit** — `seq` + `prev_head` at write time (self-chaining ledger).

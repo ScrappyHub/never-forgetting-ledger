@@ -22,7 +22,10 @@ param(
   [Parameter(Mandatory=$false)][string]$SignerIdentity = "nfl.local",
   [Parameter(Mandatory=$false)][string]$Namespace = "nfl/ledger-seal",
   [Parameter(Mandatory=$false)][string]$SigningKeyPath = "",
-  [Parameter(Mandatory=$false)][string]$TrustedPubPath = ""
+  [Parameter(Mandatory=$false)][string]$TrustedPubPath = "",
+  [Parameter(Mandatory=$false)][string]$TrustBundlePath = "",
+  [Parameter(Mandatory=$false)][string]$RootPubPath = "",
+  [Parameter(Mandatory=$false)][string]$BundleNamespace = "nfl/ingest-receipt"
 )
 
 Set-StrictMode -Version Latest
@@ -74,6 +77,31 @@ function GetProp($obj,[string]$name){
   $p = $obj.PSObject.Properties[$name]
   if($null -eq $p){ return $null }
   return $p.Value
+}
+function KeyCore([string]$publine){
+  # ssh pubkey "<type> <base64> [comment]" -> identity is type+base64 (comment ignored)
+  $parts = @(($publine.Trim() -split '\s+'))
+  if($parts.Count -ge 2){ return ($parts[0] + " " + $parts[1]) }
+  return $publine.Trim()
+}
+function ResolveBundleAuthorized([string]$BundlePath,[string]$Ns){
+  # Returns @{ authorized = @(@{principal;pub}); cores = @(all key-cores) } from a
+  # neverlost.trust_bundle.v1 file: authorized = keys whose namespaces include $Ns.
+  # Plain arrays throughout (robust in PS 5.1 StrictMode).
+  $b = (Get-Content -LiteralPath $BundlePath -Raw) | ConvertFrom-Json
+  if([string](GetProp $b "schema") -ne "neverlost.trust_bundle.v1"){ Fail ("TRUST_BUNDLE_BAD_SCHEMA:" + [string](GetProp $b "schema")) }
+  $authorized = @()
+  $cores = @()
+  foreach($pr in @(GetProp $b "principals")){
+    $principal = [string](GetProp $pr "principal")
+    foreach($k in @(GetProp $pr "keys")){
+      $pub = [string](GetProp $k "pubkey")
+      $cores += ,(KeyCore $pub)
+      $nss = @(GetProp $k "namespaces" | ForEach-Object { [string]$_ })
+      if($nss -contains $Ns){ $authorized += ,([pscustomobject]@{ principal=$principal; pub=$pub }) }
+    }
+  }
+  return [pscustomobject]@{ authorized=@($authorized); cores=@($cores) }
 }
 
 # ---- resolve paths --------------------------------------------------
@@ -236,22 +264,84 @@ if($Mode -eq "verify-seal"){
   $identity    = [string]$seal.signer_identity
   $ns          = [string]$seal.namespace
 
-  # (1) signature over payload -- verified against a TRUSTED pinned pubkey,
-  #     NOT the allowed_signers bundled in the seal (which an attacker could swap).
-  if([string]::IsNullOrWhiteSpace($TrustedPubPath)){ $TrustedPubPath = Join-Path $RepoRoot "proofs\keys\id_ed25519.pub" }
-  if(-not (Test-Path -LiteralPath $TrustedPubPath -PathType Leaf)){ Fail ("TRUSTED_PUB_MISSING:" + $TrustedPubPath) }
-  $trustedPub = ([System.IO.File]::ReadAllText($TrustedPubPath,(Utf8NoBom))).Trim()
-  $tmpAllowed = Join-Path ([System.IO.Path]::GetTempPath()) ("nfl_seal_allowed_" + [Guid]::NewGuid().ToString("N") + ".txt")
-  WriteUtf8NoBomLfText $tmpAllowed ($identity + " " + $trustedPub + "`n")
-  try {
-    $r = VerifySignature $tmpAllowed $identity $ns $sigPath $payloadPath
-  } finally {
-    if(Test-Path -LiteralPath $tmpAllowed -PathType Leaf){ Remove-Item -LiteralPath $tmpAllowed -Force -ErrorAction SilentlyContinue }
-  }
-  if($r.code -ne 0){
-    Write-Output "NFL_LEDGER_SEAL_VERIFY_FAIL:SIG_INVALID"
-    Write-Output ("SSHKEYGEN_STDERR=" + ($r.err.Trim()))
-    exit 1
+  # (1) signature over payload. Two trust models:
+  #   - TrustBundlePath: authorize the signer via a neverlost.trust_bundle.v1 (optionally
+  #     root-of-trust verified against RootPubPath); the signer must be a key the bundle
+  #     lists for the seal's namespace. (Parity with verify_nfl_export_v1.py.)
+  #   - else TrustedPubPath: pin to a single out-of-band pubkey (default id_ed25519.pub).
+  if(-not [string]::IsNullOrWhiteSpace($TrustBundlePath)){
+    if(-not (Test-Path -LiteralPath $TrustBundlePath -PathType Leaf)){ Fail ("TRUST_BUNDLE_MISSING:" + $TrustBundlePath) }
+
+    if(-not [string]::IsNullOrWhiteSpace($RootPubPath)){
+      if(-not (Test-Path -LiteralPath $RootPubPath -PathType Leaf)){ Fail ("ROOT_PUB_MISSING:" + $RootPubPath) }
+      $bundleSig = $TrustBundlePath + ".sig"
+      if(-not (Test-Path -LiteralPath $bundleSig -PathType Leaf)){ Fail ("BUNDLE_SIG_MISSING:" + $bundleSig) }
+      $rootPub = ([System.IO.File]::ReadAllText($RootPubPath,(Utf8NoBom))).Trim()
+      $tmpRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("nfl_root_allowed_" + [Guid]::NewGuid().ToString("N") + ".txt")
+      WriteUtf8NoBomLfText $tmpRoot ("neverlost.root " + $rootPub + "`n")
+      try {
+        $rb = VerifySignature $tmpRoot "neverlost.root" $BundleNamespace $bundleSig $TrustBundlePath
+      } finally {
+        if(Test-Path -LiteralPath $tmpRoot -PathType Leaf){ Remove-Item -LiteralPath $tmpRoot -Force -ErrorAction SilentlyContinue }
+      }
+      if($rb.code -ne 0){
+        Write-Output "NFL_LEDGER_SEAL_VERIFY_FAIL:BUNDLE_SIG_INVALID"
+        Write-Output ("SSHKEYGEN_STDERR=" + ($rb.err.Trim()))
+        exit 1
+      }
+      Write-Output ("BUNDLE_SIG_OK root=" + $RootPubPath + " ns=" + $BundleNamespace)
+    } else {
+      Write-Output "WARNING: BUNDLE_UNVERIFIED (no -RootPubPath; bundle contents trusted on faith)"
+    }
+
+    try {
+      $resolved = ResolveBundleAuthorized $TrustBundlePath $ns
+      $authorized = @($resolved.authorized)
+      $allCores = @($resolved.cores)
+      $r = $null
+      foreach($cand in $authorized){
+        $tmpAllowed = Join-Path ([System.IO.Path]::GetTempPath()) ("nfl_bundle_allowed_" + [Guid]::NewGuid().ToString("N") + ".txt")
+        WriteUtf8NoBomLfText $tmpAllowed ([string]$cand.principal + " " + [string]$cand.pub + "`n")
+        try {
+          $try = VerifySignature $tmpAllowed ([string]$cand.principal) $ns $sigPath $payloadPath
+        } finally {
+          if(Test-Path -LiteralPath $tmpAllowed -PathType Leaf){ Remove-Item -LiteralPath $tmpAllowed -Force -ErrorAction SilentlyContinue }
+        }
+        if($try.code -eq 0){ $r = $try; Write-Output ("SIGNATURE_OK authorized_principal=" + [string]$cand.principal); break }
+      }
+    } catch {
+      Write-Output ("NFL_LEDGER_SEAL_VERIFY_FAIL:BUNDLE_AUTH_EXCEPTION:" + $_.Exception.Message + " @line " + $_.InvocationInfo.ScriptLineNumber)
+      exit 1
+    }
+    if($null -eq $r){
+      # precise reason via the seal's bundled signer.pub (messaging only; the anchor is the bundle)
+      $signerCore = KeyCore ([System.IO.File]::ReadAllText((Join-Path $SealDir "signer.pub"),(Utf8NoBom)))
+      $authCores = @($authorized | ForEach-Object { KeyCore ([string]$_.pub) })
+      if(-not ($allCores -contains $signerCore)){
+        Write-Output "NFL_LEDGER_SEAL_VERIFY_FAIL:SIGNER_NOT_IN_BUNDLE"
+      } elseif(-not ($authCores -contains $signerCore)){
+        Write-Output "NFL_LEDGER_SEAL_VERIFY_FAIL:NAMESPACE_NOT_AUTHORIZED"
+      } else {
+        Write-Output "NFL_LEDGER_SEAL_VERIFY_FAIL:SIG_INVALID"
+      }
+      exit 1
+    }
+  } else {
+    if([string]::IsNullOrWhiteSpace($TrustedPubPath)){ $TrustedPubPath = Join-Path $RepoRoot "proofs\keys\id_ed25519.pub" }
+    if(-not (Test-Path -LiteralPath $TrustedPubPath -PathType Leaf)){ Fail ("TRUSTED_PUB_MISSING:" + $TrustedPubPath) }
+    $trustedPub = ([System.IO.File]::ReadAllText($TrustedPubPath,(Utf8NoBom))).Trim()
+    $tmpAllowed = Join-Path ([System.IO.Path]::GetTempPath()) ("nfl_seal_allowed_" + [Guid]::NewGuid().ToString("N") + ".txt")
+    WriteUtf8NoBomLfText $tmpAllowed ($identity + " " + $trustedPub + "`n")
+    try {
+      $r = VerifySignature $tmpAllowed $identity $ns $sigPath $payloadPath
+    } finally {
+      if(Test-Path -LiteralPath $tmpAllowed -PathType Leaf){ Remove-Item -LiteralPath $tmpAllowed -Force -ErrorAction SilentlyContinue }
+    }
+    if($r.code -ne 0){
+      Write-Output "NFL_LEDGER_SEAL_VERIFY_FAIL:SIG_INVALID"
+      Write-Output ("SSHKEYGEN_STDERR=" + ($r.err.Trim()))
+      exit 1
+    }
   }
 
   # (2) ledger still chains to the sealed head

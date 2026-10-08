@@ -11,6 +11,11 @@
     TAMPERED_PAYLOAD : seal, edit seal_payload.txt        -> SEAL_VERIFY_FAIL:SIG_INVALID
     ALTERED_SEAL_HEAD: seal, edit seal.json head          -> SEAL_VERIFY_FAIL:LEDGER_HEAD_MISMATCH
     LEDGER_MUTATED   : seal, mutate the ledger            -> SEAL_VERIFY_FAIL:LEDGER_HEAD_MISMATCH
+  Trust-bundle cases (verify-seal via -TrustBundlePath/-RootPubPath):
+    BUNDLE_OK        : authorized key + verified root      -> NFL_LEDGER_SEAL_VERIFY_OK
+    BUNDLE_WRONG_ROOT: bundle pinned to a different root    -> SEAL_VERIFY_FAIL:BUNDLE_SIG_INVALID
+    BUNDLE_UNKNOWN_KEY: signer not listed in the bundle     -> SEAL_VERIFY_FAIL:SIGNER_NOT_IN_BUNDLE
+    BUNDLE_WRONG_NS  : signer present, wrong namespace       -> SEAL_VERIFY_FAIL:NAMESPACE_NOT_AUTHORIZED
 #>
 
 param(
@@ -81,6 +86,26 @@ function SealDirOf([string]$caseRoot){
   if($null -eq $d){ Fail ("NO_SEAL_DIR:" + $caseRoot) }
   return $d.FullName
 }
+$SEAL_NS = "nfl/ledger-seal"      # the seal signing namespace (verify-seal default)
+$BUNDLE_NS = "neverlost/trust-bundle"  # the bundle-signing namespace for these tests
+function WriteBundle([string]$Path,[string]$PubFile,[string[]]$Namespaces){
+  $pub = ([System.IO.File]::ReadAllText($PubFile,(Utf8NoBom))).Trim()
+  $b = [ordered]@{
+    schema     = "neverlost.trust_bundle.v1"
+    created_utc = "x"
+    principals = @( [ordered]@{ principal="single-tenant/local/authority/nfl"; keys=@( [ordered]@{ key_id="k1"; pubkey=$pub; namespaces=$Namespaces } ) } )
+  }
+  WriteText $Path (($b | ConvertTo-Json -Depth 20))
+}
+function SignBundle([string]$Bundle,[string]$Key){
+  $r = StartChild $ssh ('-Y sign -f "{0}" -n "{1}" "{2}"' -f $Key,$BUNDLE_NS,$Bundle)
+  if($r.ExitCode -ne 0){ Fail ("BUNDLE_SIGN_FAILED:" + $r.StdErr.Trim()) }
+}
+function RunVerifyBundle([string]$caseRoot,[string]$Bundle,[string]$RootPub){
+  $a = ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{0}" -RepoRoot "{1}" -Mode verify-seal -TrustBundlePath "{2}" -BundleNamespace "{3}"' -f $SealScript,$caseRoot,$Bundle,$BUNDLE_NS)
+  if(-not [string]::IsNullOrWhiteSpace($RootPub)){ $a += (' -RootPubPath "{0}"' -f $RootPub) }
+  return (StartChild $PSExe $a)
+}
 
 $results = New-Object System.Collections.Generic.List[object]
 function Assert([string]$Case,[bool]$Cond,[string]$Detail){
@@ -146,6 +171,56 @@ $mut = @( $SEED[0], (Rec "bbb2" "two-MUTATED" "2026-01-02T00:00:00Z"), $SEED[2] 
 WriteLedger (Join-Path $c "data\ledger.ndjson") $mut
 $v = RunVerifySeal $c (Join-Path $c "key_main.pub")
 Assert "LEDGER_MUTATED" (($v.ExitCode -eq 1) -and ($v.StdOut -match 'NFL_LEDGER_SEAL_VERIFY_FAIL:LEDGER_HEAD_MISMATCH')) ("exit=" + $v.ExitCode)
+
+# --- BUNDLE_OK (authorized key for the seal namespace, bundle root-of-trust verified) ---
+$c = NewCase "bundle_ok"
+GenKey (Join-Path $c "key_main")
+GenKey (Join-Path $c "key_root")
+$s = RunSeal $c (Join-Path $c "key_main")
+if($s.ExitCode -ne 0){ Fail ("BOK_SEAL_FAILED:" + $s.StdOut + $s.StdErr) }
+$bundle = Join-Path $c "trust_bundle.json"
+WriteBundle $bundle (Join-Path $c "key_main.pub") @($SEAL_NS)
+SignBundle $bundle (Join-Path $c "key_root")
+$v = RunVerifyBundle $c $bundle (Join-Path $c "key_root.pub")
+Assert "BUNDLE_OK" (($v.ExitCode -eq 0) -and ($v.StdOut -match 'BUNDLE_SIG_OK') -and ($v.StdOut -match 'NFL_LEDGER_SEAL_VERIFY_OK')) ("exit=" + $v.ExitCode)
+
+# --- BUNDLE_WRONG_ROOT (bundle signed, but pinned root is a different key) ---
+$c = NewCase "bundle_wrong_root"
+GenKey (Join-Path $c "key_main")
+GenKey (Join-Path $c "key_root")
+GenKey (Join-Path $c "key_evilroot")
+$s = RunSeal $c (Join-Path $c "key_main")
+if($s.ExitCode -ne 0){ Fail ("BWR_SEAL_FAILED:" + $s.StdOut + $s.StdErr) }
+$bundle = Join-Path $c "trust_bundle.json"
+WriteBundle $bundle (Join-Path $c "key_main.pub") @($SEAL_NS)
+SignBundle $bundle (Join-Path $c "key_root")
+$v = RunVerifyBundle $c $bundle (Join-Path $c "key_evilroot.pub")
+Assert "BUNDLE_WRONG_ROOT" (($v.ExitCode -eq 1) -and ($v.StdOut -match 'NFL_LEDGER_SEAL_VERIFY_FAIL:BUNDLE_SIG_INVALID')) ("exit=" + $v.ExitCode)
+
+# --- BUNDLE_UNKNOWN_KEY (sealed by a key not listed in the bundle) ---
+$c = NewCase "bundle_unknown_key"
+GenKey (Join-Path $c "key_main")
+GenKey (Join-Path $c "key_evil")
+GenKey (Join-Path $c "key_root")
+$s = RunSeal $c (Join-Path $c "key_evil")
+if($s.ExitCode -ne 0){ Fail ("BUK_SEAL_FAILED:" + $s.StdOut + $s.StdErr) }
+$bundle = Join-Path $c "trust_bundle.json"
+WriteBundle $bundle (Join-Path $c "key_main.pub") @($SEAL_NS)
+SignBundle $bundle (Join-Path $c "key_root")
+$v = RunVerifyBundle $c $bundle (Join-Path $c "key_root.pub")
+Assert "BUNDLE_UNKNOWN_KEY" (($v.ExitCode -eq 1) -and ($v.StdOut -match 'NFL_LEDGER_SEAL_VERIFY_FAIL:SIGNER_NOT_IN_BUNDLE')) ("exit=" + $v.ExitCode)
+
+# --- BUNDLE_WRONG_NS (signer in bundle, but not authorized for the seal namespace) ---
+$c = NewCase "bundle_wrong_ns"
+GenKey (Join-Path $c "key_main")
+GenKey (Join-Path $c "key_root")
+$s = RunSeal $c (Join-Path $c "key_main")
+if($s.ExitCode -ne 0){ Fail ("BWN_SEAL_FAILED:" + $s.StdOut + $s.StdErr) }
+$bundle = Join-Path $c "trust_bundle.json"
+WriteBundle $bundle (Join-Path $c "key_main.pub") @("nfl/some-other-namespace")
+SignBundle $bundle (Join-Path $c "key_root")
+$v = RunVerifyBundle $c $bundle (Join-Path $c "key_root.pub")
+Assert "BUNDLE_WRONG_NS" (($v.ExitCode -eq 1) -and ($v.StdOut -match 'NFL_LEDGER_SEAL_VERIFY_FAIL:NAMESPACE_NOT_AUTHORIZED')) ("exit=" + $v.ExitCode)
 
 # --- summary + receipt ---
 $passed = @($results | Where-Object { $_.ok }).Count
