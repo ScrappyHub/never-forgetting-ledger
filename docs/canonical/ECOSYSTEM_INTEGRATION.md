@@ -30,7 +30,7 @@ NFL witnesses evidence. It does not manufacture truth, decide trust, or enforce 
 
 ## This service does not own
 
-- Packet Constitution / Option-A packet-law verification → **CPR** (`C:\dev\cpr`)
+- Packet Constitution / Option-A packet-law verification → **CPR** (`../cpr`)
 - Trust authority — which key/principal is authorized to make a claim → **NeverLost** (future)
 - Policy / permit decisions → **Covenant Gate / Arbiter**
 - Identity, device posture, artifact packaging, restore/capture → respective instruments
@@ -38,7 +38,7 @@ NFL witnesses evidence. It does not manufacture truth, decide trust, or enforce 
 
 ## Upstream services
 
-- **CPR** — authoritative packet-law verifier (`C:/dev/cpr/scripts/verify_packet_v1.ps1`).
+- **CPR** — authoritative packet-law verifier (`../cpr/scripts/verify_packet_v1.ps1`).
   NFL consumes CPR verdicts and witnesses them; NFL does not re-implement packet law.
 - **NeverLost** *(planned)* — trust bundles (`trust_bundle.json`) resolving authorized
   principals / keys / namespace authorization. Not yet wired; scaffolding present in
@@ -71,10 +71,10 @@ NFL witnesses evidence. It does not manufacture truth, decide trust, or enforce 
 
 ## Authoritative ecosystem sources
 
-- `C:\dev\Constellation\ecosystem\SERVICE_MAP.md`
-- `C:\dev\Constellation\registry\services.json`
-- `C:\dev\Constellation\ecosystem\AGENT_POLICY.md`
-- `C:\dev\Constellation\ecosystem\SHARED_INVARIANTS.md`
+- `../Constellation/ecosystem/SERVICE_MAP.md`
+- `../Constellation/registry/services.json`
+- `../Constellation/ecosystem/AGENT_POLICY.md`
+- `../Constellation/ecosystem/SHARED_INVARIANTS.md`
 
 ## Change governance
 
